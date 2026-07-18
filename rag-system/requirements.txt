@@ -1,0 +1,14 @@
+markitdown[docx,pdf]
+langchain
+langchain-community
+langchain-text-splitters
+chromadb
+jieba
+scikit-learn
+pymysql
+fastapi
+uvicorn
+python-multipart
+requests
+jinja2
+python-dotenv

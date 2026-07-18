@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 智能检索系统 - 讯飞智能硬件</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; }
+        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 20px 40px; }
+        .header h1 { font-size: 24px; margin-bottom: 5px; }
+        .header p { opacity: 0.8; font-size: 14px; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a73e8; }
+        .query-section { display: flex; gap: 12px; margin-bottom: 16px; }
+        .query-input { flex: 1; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .query-input:focus { border-color: #1a73e8; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-secondary { background: #e8e8e8; color: #333; }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .mode-selector { display: flex; gap: 8px; margin-bottom: 16px; }
+        .mode-btn { padding: 8px 16px; border: 2px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .mode-btn.active { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; font-weight: 600; }
+        .results { margin-top: 16px; }
+        .result-item { padding: 16px; border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 12px; transition: box-shadow 0.2s; }
+        .result-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .result-score { background: #e8f0fe; color: #1a73e8; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .result-content { font-size: 14px; line-height: 1.6; color: #555; }
+        .enhanced-info { background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+        .enhanced-info h3 { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .step-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+        .step-tag { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+        .upload-area { border: 2px dashed #d0d0d0; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-area:hover { border-color: #1a73e8; background: #f8f9fa; }
+        .upload-area.dragover { border-color: #1a73e8; background: #e8f0fe; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .stat-item { text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #1a73e8; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+        .loading { display: none; text-align: center; padding: 20px; color: #888; }
+        .loading.active { display: block; }
+        .empty-state { text-align: center; padding: 40px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RAG 智能检索系统</h1>
+        <p>讯飞智能硬件产品助理 - 数据底座</p>
+    </div>
+
+    <div class="container">
+        <!-- 状态卡片 -->
+        <div class="card">
+            <h2>系统状态</h2>
+            <div class="stats-grid" id="stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="docCount">-</div>
+                    <div class="stat-label">文档数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="chunkCount">-</div>
+                    <div class="stat-label">文本块数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="dbStatus">-</div>
+                    <div class="stat-label">向量数据库</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 上传卡片 -->
+        <div class="card">
+            <h2>上传文档</h2>
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <p>点击或拖拽文件到此处上传</p>
+                <p style="font-size:12px;color:#aaa;margin-top:8px">支持 PDF、Word、TXT 等格式</p>
+            </div>
+            <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.docx,.doc,.txt,.md">
+        </div>
+
+        <!-- 爬虫卡片 -->
+        <div class="card">
+            <h2>数据采集</h2>
+            <p style="color:#666;margin-bottom:12px">从讯飞淘宝官方旗舰店自动爬取产品数据</p>
+            <div style="display:flex;gap:12px;align-items:center">
+                <input type="text" class="query-input" id="storeUrl" placeholder="店铺URL" value="https://iflytek.tmall.com" style="flex:2">
+                <button class="btn btn-primary" id="scrapeBtn" onclick="doScrape()">开始爬取</button>
+            </div>
+            <div id="scrapeResult" style="margin-top:12px"></div>
+        </div>
+
+        <!-- 查询卡片 -->
+        <div class="card">
+            <h2>智能查询</h2>
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="enhanced" onclick="setMode('enhanced')">增强检索</button>
+                <button class="mode-btn" data-mode="basic" onclick="setMode('basic')">基础检索</button>
+                <button class="mode-btn" data-mode="react" onclick="setMode('react')">ReAct</button>
+                <button class="mode-btn" data-mode="plan_and_solve" onclick="setMode('plan_and_solve')">Plan-and-Solve</button>
+                <button class="mode-btn" data-mode="reflection" onclick="setMode('reflection')">Reflection</button>
+            </div>
+            <div class="query-section">
+                <input type="text" class="query-input" id="queryInput" placeholder="输入您的问题，如：智能办公本有什么功能？" onkeypress="if(event.key==='Enter')doQuery()">
+                <button class="btn btn-primary" id="queryBtn" onclick="doQuery()">查询</button>
+            </div>
+            <div class="loading" id="loading">正在检索中...</div>
+            <div class="results" id="results">
+                <div class="empty-state">输入问题开始检索</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'enhanced';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+        }
+
+        async function doQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const btn = document.getElementById('queryBtn');
+
+            loading.classList.add('active');
+            results.innerHTML = '';
+            btn.disabled = true;
+
+            try {
+                const isAgent = ['react', 'plan_and_solve', 'reflection'].includes(currentMode);
+                const body = {
+                    query,
+                    mode: isAgent ? 'enhanced' : currentMode,
+                    top_k: 5
+                };
+                if (isAgent) body.agent_mode = currentMode;
+
+                const resp = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await resp.json();
+
+                if (data.error) {
+                    results.innerHTML = `<div class="empty-state">${data.error}</div>`;
+                    return;
+                }
+
+                let html = '';
+
+                if (data.enhanced_info) {
+                    html += `<div class="enhanced-info">
+                        <h3>增强检索步骤</h3>
+                        <div class="step-tags">
+                            ${data.enhanced_info.steps.map(s => `<span class="step-tag">${s}</span>`).join('')}
+                        </div>
+                    </div>`;
+
+                    if (data.enhanced_info.answer) {
+                        html += `<div class="result-item" style="border-left:4px solid #1a73e8;background:#f8f9fa">
+                            <div class="result-header">
+                                <span style="font-weight:600;color:#1a73e8">智能回答</span>
+                            </div>
+                            <div class="result-content">${data.enhanced_info.answer.replace(/\n/g, '<br>')}</div>
+                        </div>`;
+                    }
+                }
+
+                if (data.results.length === 0) {
+                    html += '<div class="empty-state">未找到相关结果</div>';
+                } else {
+                    data.results.forEach((r, i) => {
+                        html += `<div class="result-item">
+                            <div class="result-header">
+                                <span style="font-weight:600">结果 ${i+1}</span>
+                                ${r.score ? `<span class="result-score">相关度: ${(r.score * 100).toFixed(1)}%</span>` : ''}
+                            </div>
+                            <div class="result-content">${r.content}</div>
+                        </div>`;
+                    });
+                }
+
+                results.innerHTML = html;
+            } catch (e) {
+                results.innerHTML = `<div class="empty-state">查询失败: ${e.message}</div>`;
+            } finally {
+                loading.classList.remove('active');
+                btn.disabled = false;
+            }
+        }
+
+        // 上传功能
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+        async function handleFiles(files) {
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    uploadArea.innerHTML = `<p>正在上传: ${file.name}...</p>`;
+                    const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                    const data = await resp.json();
+                    if (data.status === 'success') {
+                        uploadArea.innerHTML = `<p style="color:green">上传成功: ${file.name} (${data.chunks_count} 个文本块)</p>`;
+                        loadStats();
+                    }
+                } catch (e) {
+                    uploadArea.innerHTML = `<p style="color:red">上传失败: ${e.message}</p>`;
+                }
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const resp = await fetch('/api/stats');
+                const data = await resp.json();
+                document.getElementById('dbStatus').textContent = data.vector_db_status === 'ready' ? '就绪' : '未就绪';
+                document.getElementById('chunkCount').textContent = data.vector_db_count || 0;
+                if (data.mysql && data.mysql.doc_count !== undefined) {
+                    document.getElementById('docCount').textContent = data.mysql.doc_count;
+                }
+            } catch (e) {}
+        }
+
+        loadStats();
+
+        // 爬虫功能
+        async function doScrape() {
+            const btn = document.getElementById('scrapeBtn');
+            const result = document.getElementById('scrapeResult');
+            const url = document.getElementById('storeUrl').value.trim();
+
+            btn.disabled = true;
+            btn.textContent = '爬取中...';
+            result.innerHTML = '<p style="color:#888">正在爬取数据，请稍候（约30秒）...</p>';
+
+            try {
+                const resp = await fetch('/api/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ store_url: url, max_pages: 3 })
+                });
+
+                const data = await resp.json();
+
+                if (data.status === 'success') {
+                    let html = `<p style="color:green">爬取完成！获取 ${data.products_count} 个产品：</p><ul style="margin-top:8px;padding-left:20px">`;
+                    data.products.forEach(p => {
+                        html += `<li>${p.name} ${p.price ? '¥' + p.price : ''}</li>`;
+                    });
+                    html += '</ul>';
+                    result.innerHTML = html;
+                    loadStats();
+                } else {
+                    result.innerHTML = `<p style="color:red">爬取失败</p>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<p style="color:red">请求失败: ${e.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '开始爬取';
+            }
+        }
+    </script>
+</body>
+</html>

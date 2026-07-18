@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 数据文件（不上传）
+rag-system/chroma_db/
+rag-system/uploads/
+rag-system/output/
+rag-system/.venv/
+rag-system/.env

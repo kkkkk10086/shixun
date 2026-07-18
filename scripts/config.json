@@ -1,0 +1,27 @@
+{
+  "workspaceDirs": [
+    "D:/xjwjj/实训"
+  ],
+  "authorEmails": ["kkk530348@gmail.com"],
+  "scan": {
+    "maxDepth": 4,
+    "maxRepos": 100
+  },
+  "ignore": {
+    "dirs": [
+      "node_modules", ".git", "dist", "build", "coverage",
+      ".next", ".nuxt", ".output", ".cache", ".turbo", ".vite",
+      ".idea", ".vscode", "logs", "tmp", "temp", "target", ".gradle", "out"
+    ]
+  },
+  "report": {
+    "showBranch": false,
+    "showDate": true,
+    "staleMaxAge": 3
+  },
+  "wechatWork": {
+    "enabled": false,
+    "webhookUrl": "",
+    "mentionAll": false
+  }
+}
