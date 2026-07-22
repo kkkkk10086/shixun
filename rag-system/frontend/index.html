@@ -6,285 +6,313 @@
     <title>RAG 智能检索系统 - 讯飞智能硬件</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; }
-        .header { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 20px 40px; }
-        .header h1 { font-size: 24px; margin-bottom: 5px; }
-        .header p { opacity: 0.8; font-size: 14px; }
-        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
-        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1a73e8; }
-        .query-section { display: flex; gap: 12px; margin-bottom: 16px; }
-        .query-input { flex: 1; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+        .navbar { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 20px; }
+        .navbar span { font-size: 13px; opacity: 0.8; }
+        .main { max-width: 1200px; margin: 24px auto; padding: 0 24px; display: grid; grid-template-columns: 320px 1fr; gap: 24px; }
+        .sidebar { display: flex; flex-direction: column; gap: 16px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #1a73e8; }
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat-box { background: #f8f9ff; border-radius: 10px; padding: 14px; text-align: center; }
+        .stat-value { font-size: 22px; font-weight: 700; color: #1a73e8; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+        .file-list { max-height: 320px; overflow-y: auto; }
+        .file-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; }
+        .file-item:hover { background: #f5f7fa; }
+        .file-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; }
+        .file-icon.pdf { background: #e53935; }
+        .file-icon.docx { background: #1565c0; }
+        .file-icon.md { background: #2e7d32; }
+        .file-icon.txt { background: #7b1fa2; }
+        .file-name { font-size: 13px; font-weight: 500; }
+        .file-meta { font-size: 11px; color: #999; }
+        .file-empty { text-align: center; padding: 32px; color: #bbb; }
+        .upload-zone { border: 2px dashed #d0d5dd; border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; background: #fafbfc; }
+        .upload-zone:hover { border-color: #1a73e8; background: #f0f4ff; }
+        .upload-zone.dragover { border-color: #1a73e8; background: #e8f0fe; }
+        .upload-zone p { font-size: 13px; color: #666; }
+        .upload-status { margin-top: 10px; font-size: 12px; padding: 8px 12px; border-radius: 6px; display: none; }
+        .upload-status.success { display: block; background: #e8f5e9; color: #2e7d32; }
+        .upload-status.error { display: block; background: #ffebee; color: #c62828; }
+        .upload-status.loading { display: block; background: #e3f2fd; color: #1565c0; }
+        .content { display: flex; flex-direction: column; gap: 16px; }
+        .mode-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .mode-tab { padding: 7px 16px; border: 1.5px solid #e0e5ec; border-radius: 20px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; color: #555; }
+        .mode-tab:hover { border-color: #1a73e8; color: #1a73e8; }
+        .mode-tab.active { border-color: #1a73e8; background: #1a73e8; color: white; }
+        .query-box { display: flex; gap: 10px; }
+        .query-input { flex: 1; padding: 14px 18px; border: 2px solid #e0e5ec; border-radius: 10px; font-size: 15px; outline: none; }
         .query-input:focus { border-color: #1a73e8; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: #1a73e8; color: white; }
-        .btn-primary:hover { background: #1557b0; }
-        .btn-secondary { background: #e8e8e8; color: #333; }
-        .btn-secondary:hover { background: #d0d0d0; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .mode-selector { display: flex; gap: 8px; margin-bottom: 16px; }
-        .mode-btn { padding: 8px 16px; border: 2px solid #e0e0e0; border-radius: 20px; background: white; cursor: pointer; font-size: 14px; transition: all 0.2s; }
-        .mode-btn.active { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; font-weight: 600; }
-        .results { margin-top: 16px; }
-        .result-item { padding: 16px; border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 12px; transition: box-shadow 0.2s; }
-        .result-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .result-score { background: #e8f0fe; color: #1a73e8; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-        .result-content { font-size: 14px; line-height: 1.6; color: #555; }
-        .enhanced-info { background: #f8f9fa; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
-        .enhanced-info h3 { font-size: 14px; color: #666; margin-bottom: 8px; }
-        .step-tags { display: flex; gap: 8px; flex-wrap: wrap; }
-        .step-tag { background: #e8f0fe; color: #1a73e8; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
-        .upload-area { border: 2px dashed #d0d0d0; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .upload-area:hover { border-color: #1a73e8; background: #f8f9fa; }
-        .upload-area.dragover { border-color: #1a73e8; background: #e8f0fe; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-        .stat-item { text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px; }
-        .stat-value { font-size: 24px; font-weight: 700; color: #1a73e8; }
-        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
-        .loading { display: none; text-align: center; padding: 20px; color: #888; }
-        .loading.active { display: block; }
-        .empty-state { text-align: center; padding: 40px; color: #aaa; }
+        .btn-query { padding: 14px 28px; background: linear-gradient(135deg, #1a73e8, #1565c0); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-query:hover { box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+        .btn-query:disabled { opacity: 0.6; cursor: not-allowed; }
+        .result-loading { text-align: center; padding: 48px; color: #888; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #e0e5ec; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .answer-card { background: linear-gradient(135deg, #f8f9ff, #eef2ff); border: 1px solid #e0e8ff; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .answer-header { font-weight: 600; color: #1a73e8; margin-bottom: 10px; }
+        .answer-content { font-size: 14px; line-height: 1.8; }
+        .steps-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+        .step-chip { background: white; border: 1px solid #e0e5ec; padding: 4px 12px; border-radius: 14px; font-size: 11px; color: #666; }
+        .ref-toggle { cursor: pointer; color: #1a73e8; font-size: 13px; margin-top: 12px; }
+        .ref-list { display: none; margin-top: 10px; }
+        .ref-list.show { display: block; }
+        .ref-item { background: white; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px; color: #555; line-height: 1.6; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+        .chat-container { max-height: 500px; overflow-y: auto; padding: 8px 0; }
+        .chat-msg { margin-bottom: 12px; display: flex; }
+        .chat-msg.user { justify-content: flex-end; }
+        .chat-msg.assistant { justify-content: flex-start; }
+        .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
+        .user-bubble { background: #1a73e8; color: white; border-bottom-right-radius: 4px; }
+        .assistant-bubble { background: #f0f2f5; color: #333; border-bottom-left-radius: 4px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>RAG 智能检索系统</h1>
-        <p>讯飞智能硬件产品助理 - 数据底座</p>
-    </div>
+    <nav class="navbar">
+        <div>
+            <h1>RAG 智能检索系统</h1>
+            <span>讯飞智能硬件产品助理 · 数据底座</span>
+        </div>
+        <span>系统运行中</span>
+    </nav>
 
-    <div class="container">
-        <!-- 状态卡片 -->
-        <div class="card">
-            <h2>系统状态</h2>
-            <div class="stats-grid" id="stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="docCount">-</div>
-                    <div class="stat-label">文档数</div>
+    <div class="main">
+        <div class="sidebar">
+            <div class="card">
+                <h2>系统状态</h2>
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-value" id="fileCount">0</div>
+                        <div class="stat-label">文档数</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="chunkCount">0</div>
+                        <div class="stat-label">文本块</div>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="chunkCount">-</div>
-                    <div class="stat-label">文本块数</div>
+            </div>
+
+            <div class="card" style="flex:1">
+                <h2>RAG 数据库</h2>
+                <div class="file-list" id="fileList">
+                    <div class="file-empty">暂无文件</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="dbStatus">-</div>
-                    <div class="stat-label">向量数据库</div>
+            </div>
+
+            <div class="card">
+                <h2>上传文档</h2>
+                <div class="upload-zone" id="uploadArea">
+                    <p>点击或拖拽文件到此处</p>
+                    <p style="font-size:11px;color:#aaa;margin-top:4px">支持 PDF、Word、TXT、Markdown</p>
                 </div>
+                <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.docx,.doc,.txt,.md">
+                <div class="upload-status" id="uploadStatus"></div>
             </div>
         </div>
 
-        <!-- 上传卡片 -->
-        <div class="card">
-            <h2>上传文档</h2>
-            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <p>点击或拖拽文件到此处上传</p>
-                <p style="font-size:12px;color:#aaa;margin-top:8px">支持 PDF、Word、TXT 等格式</p>
+        <div class="content">
+            <div class="card">
+                <h2>智能查询</h2>
+                <div class="mode-tabs">
+                    <button class="mode-tab active" data-mode="chat" onclick="setMode('chat')">智能对话</button>
+                    <button class="mode-tab" data-mode="enhanced" onclick="setMode('enhanced')">增强检索</button>
+                    <button class="mode-tab" data-mode="basic" onclick="setMode('basic')">基础检索</button>
+                    <button class="mode-tab" data-mode="react" onclick="setMode('react')">ReAct</button>
+                    <button class="mode-tab" data-mode="plan_and_solve" onclick="setMode('plan_and_solve')">Plan-and-Solve</button>
+                    <button class="mode-tab" data-mode="reflection" onclick="setMode('reflection')">Reflection</button>
+                </div>
+                <div class="query-box">
+                    <textarea class="query-input" id="queryInput" rows="1" placeholder="输入您的问题，Shift+Enter换行，Enter发送" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();doQuery()}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+                    <button class="btn-query" id="queryBtn" onclick="doQuery()">查询</button>
+                </div>
             </div>
-            <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.docx,.doc,.txt,.md">
-        </div>
 
-        <!-- 爬虫卡片 -->
-        <div class="card">
-            <h2>数据采集</h2>
-            <p style="color:#666;margin-bottom:12px">从讯飞淘宝官方旗舰店自动爬取产品数据</p>
-            <div style="display:flex;gap:12px;align-items:center">
-                <input type="text" class="query-input" id="storeUrl" placeholder="店铺URL" value="https://iflytek.tmall.com" style="flex:2">
-                <button class="btn btn-primary" id="scrapeBtn" onclick="doScrape()">开始爬取</button>
-            </div>
-            <div id="scrapeResult" style="margin-top:12px"></div>
-        </div>
-
-        <!-- 查询卡片 -->
-        <div class="card">
-            <h2>智能查询</h2>
-            <div class="mode-selector">
-                <button class="mode-btn active" data-mode="enhanced" onclick="setMode('enhanced')">增强检索</button>
-                <button class="mode-btn" data-mode="basic" onclick="setMode('basic')">基础检索</button>
-                <button class="mode-btn" data-mode="react" onclick="setMode('react')">ReAct</button>
-                <button class="mode-btn" data-mode="plan_and_solve" onclick="setMode('plan_and_solve')">Plan-and-Solve</button>
-                <button class="mode-btn" data-mode="reflection" onclick="setMode('reflection')">Reflection</button>
-            </div>
-            <div class="query-section">
-                <input type="text" class="query-input" id="queryInput" placeholder="输入您的问题，如：智能办公本有什么功能？" onkeypress="if(event.key==='Enter')doQuery()">
-                <button class="btn btn-primary" id="queryBtn" onclick="doQuery()">查询</button>
-            </div>
-            <div class="loading" id="loading">正在检索中...</div>
-            <div class="results" id="results">
-                <div class="empty-state">输入问题开始检索</div>
+            <div class="card" id="resultArea">
+                <div class="empty-state" id="emptyState">输入问题开始智能检索</div>
             </div>
         </div>
     </div>
 
     <script>
-        let currentMode = 'enhanced';
+        let currentMode = 'chat';
+        let sessionId = 'session_' + Date.now();
 
         function setMode(mode) {
             currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(btn => {
+            document.querySelectorAll('.mode-tab').forEach(function(btn) {
                 btn.classList.toggle('active', btn.dataset.mode === mode);
             });
         }
 
         async function doQuery() {
-            const query = document.getElementById('queryInput').value.trim();
+            var query = document.getElementById('queryInput').value.trim();
             if (!query) return;
 
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
-            const btn = document.getElementById('queryBtn');
+            var resultArea = document.getElementById('resultArea');
+            var btn = document.getElementById('queryBtn');
+            var emptyState = document.getElementById('emptyState');
 
-            loading.classList.add('active');
-            results.innerHTML = '';
+            if (emptyState) emptyState.style.display = 'none';
             btn.disabled = true;
+            btn.textContent = '思考中...';
+
+            if (currentMode === 'chat') {
+                var chatContainer = document.getElementById('chatContainer');
+                if (!chatContainer) {
+                    resultArea.innerHTML = '<div class="chat-container" id="chatContainer"></div>';
+                    chatContainer = document.getElementById('chatContainer');
+                }
+
+                chatContainer.innerHTML += '<div class="chat-msg user"><div class="chat-bubble user-bubble">' + query + '</div></div>';
+                chatContainer.innerHTML += '<div class="chat-msg assistant" id="typing"><div class="chat-bubble assistant-bubble">思考中...</div></div>';
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                try {
+                    var resp = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: query, session_id: sessionId })
+                    });
+                    var data = await resp.json();
+
+                    var typingEl = document.getElementById('typing');
+                    if (typingEl) typingEl.remove();
+
+                    chatContainer.innerHTML += '<div class="chat-msg assistant"><div class="chat-bubble assistant-bubble">' + data.answer.replace(/\n/g, '<br>') + '</div></div>';
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                } catch (e) {
+                    var typingEl = document.getElementById('typing');
+                    if (typingEl) typingEl.remove();
+                    chatContainer.innerHTML += '<div class="chat-msg assistant"><div class="chat-bubble assistant-bubble" style="color:red">出错了: ' + e.message + '</div></div>';
+                }
+
+                document.getElementById('queryInput').value = '';
+                btn.disabled = false;
+                btn.textContent = '发送';
+                return;
+            }
+
+            btn.textContent = '检索中...';
+            resultArea.innerHTML = '<div class="result-loading"><div class="spinner"></div><p>正在检索知识库并分析...</p></div>';
 
             try {
-                const isAgent = ['react', 'plan_and_solve', 'reflection'].includes(currentMode);
-                const body = {
-                    query,
-                    mode: isAgent ? 'enhanced' : currentMode,
-                    top_k: 5
-                };
+                var isAgent = ['react', 'plan_and_solve', 'reflection'].indexOf(currentMode) >= 0;
+                var body = { query: query, mode: isAgent ? 'enhanced' : currentMode, top_k: 5 };
                 if (isAgent) body.agent_mode = currentMode;
 
-                const resp = await fetch('/api/query', {
+                var resp = await fetch('/api/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body)
                 });
+                var data = await resp.json();
+                var html = '';
 
-                const data = await resp.json();
-
-                if (data.error) {
-                    results.innerHTML = `<div class="empty-state">${data.error}</div>`;
-                    return;
-                }
-
-                let html = '';
-
-                if (data.enhanced_info) {
-                    html += `<div class="enhanced-info">
-                        <h3>增强检索步骤</h3>
-                        <div class="step-tags">
-                            ${data.enhanced_info.steps.map(s => `<span class="step-tag">${s}</span>`).join('')}
-                        </div>
-                    </div>`;
-
-                    if (data.enhanced_info.answer) {
-                        html += `<div class="result-item" style="border-left:4px solid #1a73e8;background:#f8f9fa">
-                            <div class="result-header">
-                                <span style="font-weight:600;color:#1a73e8">智能回答</span>
-                            </div>
-                            <div class="result-content">${data.enhanced_info.answer.replace(/\n/g, '<br>')}</div>
-                        </div>`;
-                    }
-                }
-
-                if (data.results.length === 0) {
-                    html += '<div class="empty-state">未找到相关结果</div>';
-                } else {
-                    data.results.forEach((r, i) => {
-                        html += `<div class="result-item">
-                            <div class="result-header">
-                                <span style="font-weight:600">结果 ${i+1}</span>
-                                ${r.score ? `<span class="result-score">相关度: ${(r.score * 100).toFixed(1)}%</span>` : ''}
-                            </div>
-                            <div class="result-content">${r.content}</div>
-                        </div>`;
+                if (data.enhanced_info && data.enhanced_info.steps) {
+                    html += '<div class="steps-bar">';
+                    data.enhanced_info.steps.forEach(function(s) {
+                        html += '<span class="step-chip">' + s + '</span>';
                     });
+                    html += '</div>';
                 }
 
-                results.innerHTML = html;
+                if (data.enhanced_info && data.enhanced_info.answer) {
+                    html += '<div class="answer-card"><div class="answer-header">智能回答</div><div class="answer-content">' + data.enhanced_info.answer.replace(/\n/g, '<br>') + '</div></div>';
+                }
+
+                if (data.results && data.results.length > 0) {
+                    html += '<div class="ref-toggle" onclick="this.nextElementSibling.classList.toggle(\'show\')">参考文档（' + data.results.length + '条）</div><div class="ref-list">';
+                    data.results.forEach(function(r, i) {
+                        html += '<div class="ref-item"><b>[' + (i+1) + ']</b> ' + r.content + '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                if (!html) html = '<div class="empty-state">未找到相关结果</div>';
+                resultArea.innerHTML = html;
             } catch (e) {
-                results.innerHTML = `<div class="empty-state">查询失败: ${e.message}</div>`;
+                resultArea.innerHTML = '<div class="empty-state">查询失败: ' + e.message + '</div>';
             } finally {
-                loading.classList.remove('active');
                 btn.disabled = false;
+                btn.textContent = '查询';
             }
         }
 
         // 上传功能
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
+        var uploadArea = document.getElementById('uploadArea');
+        var fileInput = document.getElementById('fileInput');
+        var uploadStatus = document.getElementById('uploadStatus');
 
-        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-        uploadArea.addEventListener('drop', e => {
+        uploadArea.addEventListener('click', function() { fileInput.click(); });
+        uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
+        uploadArea.addEventListener('drop', function(e) {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             handleFiles(e.dataTransfer.files);
         });
-
-        fileInput.addEventListener('change', e => handleFiles(e.target.files));
+        fileInput.addEventListener('change', function(e) { handleFiles(e.target.files); });
 
         async function handleFiles(files) {
-            for (const file of files) {
-                const formData = new FormData();
-                formData.append('file', file);
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                uploadStatus.className = 'upload-status loading';
+                uploadStatus.textContent = '正在上传: ' + file.name + '...';
                 try {
-                    uploadArea.innerHTML = `<p>正在上传: ${file.name}...</p>`;
-                    const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-                    const data = await resp.json();
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    var resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                    var data = await resp.json();
                     if (data.status === 'success') {
-                        uploadArea.innerHTML = `<p style="color:green">上传成功: ${file.name} (${data.chunks_count} 个文本块)</p>`;
+                        uploadStatus.className = 'upload-status success';
+                        uploadStatus.textContent = '上传成功: ' + file.name + '（' + data.chunks_count + ' 个文本块）';
                         loadStats();
+                        loadFileList();
                     }
                 } catch (e) {
-                    uploadArea.innerHTML = `<p style="color:red">上传失败: ${e.message}</p>`;
+                    uploadStatus.className = 'upload-status error';
+                    uploadStatus.textContent = '上传失败: ' + e.message;
                 }
             }
         }
 
         async function loadStats() {
             try {
-                const resp = await fetch('/api/stats');
-                const data = await resp.json();
-                document.getElementById('dbStatus').textContent = data.vector_db_status === 'ready' ? '就绪' : '未就绪';
+                var resp = await fetch('/api/stats');
+                var data = await resp.json();
                 document.getElementById('chunkCount').textContent = data.vector_db_count || 0;
-                if (data.mysql && data.mysql.doc_count !== undefined) {
-                    document.getElementById('docCount').textContent = data.mysql.doc_count;
-                }
             } catch (e) {}
         }
 
-        loadStats();
-
-        // 爬虫功能
-        async function doScrape() {
-            const btn = document.getElementById('scrapeBtn');
-            const result = document.getElementById('scrapeResult');
-            const url = document.getElementById('storeUrl').value.trim();
-
-            btn.disabled = true;
-            btn.textContent = '爬取中...';
-            result.innerHTML = '<p style="color:#888">正在爬取数据，请稍候（约30秒）...</p>';
-
+        async function loadFileList() {
             try {
-                const resp = await fetch('/api/scrape', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ store_url: url, max_pages: 3 })
-                });
+                var resp = await fetch('/api/files');
+                var data = await resp.json();
+                var fileList = document.getElementById('fileList');
+                document.getElementById('fileCount').textContent = data.files ? data.files.length : 0;
 
-                const data = await resp.json();
-
-                if (data.status === 'success') {
-                    let html = `<p style="color:green">爬取完成！获取 ${data.products_count} 个产品：</p><ul style="margin-top:8px;padding-left:20px">`;
-                    data.products.forEach(p => {
-                        html += `<li>${p.name} ${p.price ? '¥' + p.price : ''}</li>`;
+                if (data.files && data.files.length > 0) {
+                    var html = '';
+                    data.files.forEach(function(f) {
+                        var iconClass = f.type === 'pdf' ? 'pdf' : f.type === 'docx' ? 'docx' : f.type === 'md' ? 'md' : 'txt';
+                        var iconText = f.type.toUpperCase().substring(0, 3);
+                        html += '<div class="file-item"><div class="file-icon ' + iconClass + '">' + iconText + '</div><div><div class="file-name">' + f.name + '</div><div class="file-meta">' + f.type.toUpperCase() + ' · ' + f.size + '</div></div></div>';
                     });
-                    html += '</ul>';
-                    result.innerHTML = html;
-                    loadStats();
+                    html += '<p style="margin-top:8px;color:#aaa;font-size:11px">共 ' + data.files.length + ' 个文件 · ' + data.chunks + ' 个文本块</p>';
+                    fileList.innerHTML = html;
                 } else {
-                    result.innerHTML = `<p style="color:red">爬取失败</p>`;
+                    fileList.innerHTML = '<div class="file-empty">暂无文件，请上传文档</div>';
                 }
             } catch (e) {
-                result.innerHTML = `<p style="color:red">请求失败: ${e.message}</p>`;
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '开始爬取';
+                document.getElementById('fileList').innerHTML = '<div class="file-empty">加载失败</div>';
             }
         }
+
+        loadStats();
+        loadFileList();
     </script>
 </body>
 </html>

@@ -47,7 +47,11 @@ Observation: [DeepSeek 的分析回答]
 最后：
 Final Answer: 直接输出 DeepSeek 的回答
 
-重要：第2步必须调用 analyze_with_llm，把问题和文档一起发给 DeepSeek 分析，不要自己判断有没有相关信息。
+重要规则：
+1. 必须先调用 search_knowledge，再调用 analyze_with_llm
+2. 回答必须优先使用文档中存在的信息
+3. 只有文档中完全没有相关信息时，才用通用知识补充
+4. 不要说"文档中没有信息"，而是列出文档中找到的所有相关内容
 
 用户问题：{query}
 
@@ -102,46 +106,41 @@ Final Answer: 直接输出 DeepSeek 的回答
 # 2. Plan-and-Solve 范式（先规划，再执行）
 # ============================================================
 
-def plan_and_solve_agent(query: str, tools: dict) -> str:
+def plan_and_solve_agent(query: str, tools: dict = None) -> str:
     """
     Plan-and-Solve 范式：
-    第一步：获取所有文档
-    第二步：发给 DeepSeek 分析
-    第三步：输出回答
+    搜索知识库 → 发给 DeepSeek 分析 → 输出回答
     """
     llm = get_llm()
 
-    # 1. 获取所有文档
+    # 1. 搜索知识库
     all_docs_text = ""
     if tools and "search_knowledge" in tools:
         all_docs_text = tools["search_knowledge"](query)
-        print(f"\n[Plan-and-Solve] 获取到文档")
+        print(f"\n[Plan-and-Solve] 获取到 {len(all_docs_text)} 字符文档")
 
     # 2. 发给 DeepSeek 分析
     if tools and "analyze_with_llm" in tools:
-        analysis_prompt = f"""你是讯飞产品知识库的智能助手。请根据以下所有文档内容回答用户问题。
+        analysis_prompt = f"""你是讯飞产品知识库的智能助手。请仔细阅读以下所有文档，找出与用户问题相关的所有产品信息。
 
-重要：即使文档中没有完全匹配的信息，也要综合已有内容给出最接近的回答。
+重要规则：
+1. 逐个检查每个文档，不要跳过任何一个
+2. 查找所有包含用户查询关键词的文档（如"鼠标"、"键盘"、"翻译机"等）
+3. 提取每个相关文档中的具体信息：产品名称、型号、价格、功能、参数
+4. 如果找到了相关信息，必须列出，不要说"没有信息"
+5. 只有当所有文档都确实没有相关信息时，才用通用知识补充
 
-知识库全部文档：
+知识库文档：
 {all_docs_text}
 
 用户问题：{query}
 
-直接回答（不要说"好的"、"作为助手"等开场白）："""
+直接回答："""
         answer = tools["analyze_with_llm"](analysis_prompt)
     else:
-        gen_prompt = f"""请根据以下知识库信息回答用户问题。
-
-知识库信息：
-{all_docs_text if all_docs_text else '无'}
-
-用户问题：{query}
-
-直接回答："""
         response = llm.chat.completions.create(
             model=DEEPSEEK_MODEL,
-            messages=[{"role": "user", "content": gen_prompt}],
+            messages=[{"role": "user", "content": f"知识库：{all_docs_text}\n\n问题：{query}\n\n直接回答："}],
             max_tokens=800,
             temperature=0.3
         )
@@ -158,45 +157,38 @@ def plan_and_solve_agent(query: str, tools: dict) -> str:
 def reflection_agent(query: str, tools: dict = None) -> str:
     """
     Reflection 范式：
-    第一步：获取所有文档
-    第二步：发给 DeepSeek 分析生成初始回答
-    第三步：反思回答质量
-    第四步：发给 DeepSeek 改进回答
+    搜索知识库 → DeepSeek 分析 → 反思 → 改进
     """
     llm = get_llm()
 
-    # ===== 阶段1：获取所有文档 =====
+    # 1. 搜索知识库
     all_docs_text = ""
     if tools and "search_knowledge" in tools:
         all_docs_text = tools["search_knowledge"](query)
-        print(f"\n[Reflection] 获取到文档")
+        print(f"\n[Reflection] 获取到 {len(all_docs_text)} 字符文档")
 
-    # ===== 阶段2：发给 DeepSeek 分析 =====
+    # 2. 发给 DeepSeek 分析
     if tools and "analyze_with_llm" in tools:
-        analysis_prompt = f"""你是讯飞产品知识库的智能助手。请根据以下所有文档内容回答用户问题。
+        analysis_prompt = f"""你是讯飞产品知识库的智能助手。请仔细阅读以下所有文档，找出与用户问题相关的所有产品信息。
 
-重要：即使文档中没有完全匹配的信息，也要综合已有内容给出最接近的回答。
+重要规则：
+1. 逐个检查每个文档，不要跳过任何一个
+2. 查找所有包含用户查询关键词的文档（如"鼠标"、"键盘"、"翻译机"等）
+3. 提取每个相关文档中的具体信息：产品名称、型号、价格、功能、参数
+4. 如果找到了相关信息，必须列出，不要说"没有信息"
+5. 只有当所有文档都确实没有相关信息时，才用通用知识补充
 
-知识库全部文档：
+知识库文档：
 {all_docs_text}
 
 用户问题：{query}
 
-直接回答（不要说"好的"、"作为助手"等开场白）："""
+直接回答："""
         initial_answer = tools["analyze_with_llm"](analysis_prompt)
     else:
-        # 降级：直接用 LLM
-        gen_prompt = f"""请根据以下知识库信息回答用户问题。
-
-知识库信息：
-{all_docs_text if all_docs_text else '无'}
-
-用户问题：{query}
-
-直接回答："""
         response = llm.chat.completions.create(
             model=DEEPSEEK_MODEL,
-            messages=[{"role": "user", "content": gen_prompt}],
+            messages=[{"role": "user", "content": f"知识库：{all_docs_text}\n\n问题：{query}\n\n直接回答："}],
             max_tokens=500,
             temperature=0.5
         )
