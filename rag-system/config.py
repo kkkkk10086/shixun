@@ -4,7 +4,7 @@
 import os
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "your-api-key-here")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_MODEL = "deepseek-v4-flash"
 
 # MinerU API 配置
 MINERU_API_KEY = os.getenv("MINERU_API_KEY", "your-mineru-key-here")
@@ -19,9 +19,9 @@ MYSQL_CONFIG = {
     "charset": "utf8mb4"
 }
 
-# 分块参数（加大块大小，保留更多上下文）
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 100
+# 分块参数（加大块大小，保留更多上下文，确保产品参数不被拆散）
+CHUNK_SIZE = 2000
+CHUNK_OVERLAP = 200
 
 # 检索参数
 RETRIEVAL_TOP_K = 5

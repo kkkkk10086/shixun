@@ -12,6 +12,7 @@ from openai import OpenAI
 from rag_tools import RAG_TOOLS, set_collection, search_knowledge_base
 from conversation_memory import memory
 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+from decorators import timer_and_log
 
 
 class SmartAssistant:
@@ -23,6 +24,7 @@ class SmartAssistant:
         if collection:
             set_collection(collection)
 
+    @timer_and_log
     def chat(self, query: str, session_id: str = "default") -> str:
         """
         完整的对话流程：
@@ -42,24 +44,13 @@ class SmartAssistant:
         else:
             kb_result = search_knowledge_base.invoke(query)
 
-        # 3. 生成回答
-        prompt = f"""你是讯飞智能硬件产品的智能助手。
-
-对话历史：
-{history_context if history_context else "（这是对话开始）"}
-
-知识库信息：
-{kb_result}
-
-用户问题：{query}
-
-回答规则：
-1. 如果知识库有信息，必须基于知识库回答，列出所有相关产品
-2. 如果是产品列表问题，必须把知识库中提到的所有产品都列出来，不要遗漏
-3. 如果知识库没有相关信息，用通用知识补充
-4. 回答要准确、简洁、有条理
-
-直接回答："""
+        # 3. 生成回答（Jinja2模板）
+        from prompt_templates import template_manager
+        prompt = template_manager.render("chat",
+            history_context=history_context,
+            kb_result=kb_result,
+            query=query
+        )
 
         response = self.llm.chat.completions.create(
             model=DEEPSEEK_MODEL,

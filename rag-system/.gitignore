@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+chroma_db/
+uploads/
+output/*.md
+output/*_chunks.txt
+app.log
+.DS_Store
+.idea/
+query
+test_*.py

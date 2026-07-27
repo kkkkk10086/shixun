@@ -1,6 +1,7 @@
 """
 模块6：Jinja2 提示词模板
-用于文档清洗、数据提取、查询增强的模板管理
+用于文档清洗、对话生成、查询增强的模板管理
+所有 prompt 统一通过模板管理器渲染，便于维护和修改
 """
 
 import os
@@ -85,13 +86,90 @@ TROUBLESHOOT_TEMPLATE = Template("""根据以下产品文档，提取常见故�
 ...（至少3个常见故障）""")
 
 
-# 查询增强模板
-QUERY_ENHANCE_TEMPLATE = Template("""将以下用户查询改写为更适合知识库检索的形式。
+# ========== 对话生成模板 ==========
 
-原始查询：{{ query }}
-改写要求：{{ requirement }}
+# 智能对话模板（smart_assistant + chat_stream 共用）
+CHAT_TEMPLATE = Template("""你是讯飞智能硬件产品的智能助手。你必须严格基于以下知识库信息回答，绝对不能使用你的通用知识。
 
-改写后的查询：""")
+规则：
+1. 逐个仔细阅读下面的每个文档
+2. 从文档中提取所有与问题相关的信息，包括产品名称、型号、参数、功能、价格等
+3. 如果文档中有相关信息，详细整理并列出
+4. 如果文档中有部分信息与问题相关，也要整理出来
+5. 只有当所有文档都确实没有任何相关信息时，才说"知识库中暂无该问题的直接答案"
+6. 不要编造任何信息，不要添加文档中没有的内容
+
+对话历史：
+{{ history_context | default("（这是对话开始）", true) }}
+
+知识库文档：
+{{ kb_result }}
+
+用户问题：{{ query }}
+
+基于上述知识库文档回答：""")
+
+
+# ========== 查询增强模板 ==========
+
+# HyDE 假设性文档生成模板
+HYDE_TEMPLATE = Template("""请根据以下问题，写一段详细的回答（约150字）。
+要求：回答要具体、包含产品名称和技术参数。只输出回答内容。
+
+问题：{{ query }}
+
+回答：""")
+
+
+# Query 重写模板
+QUERY_REWRITE_TEMPLATE = Template("""将以下问题重写为更适合知识库检索的形式。
+要求：保留核心语义，补充产品全称，使用书面语。只输出重写后的查询。
+
+问题：{{ query }}
+
+重写：""")
+
+
+# 多扩展查询模板
+QUERY_EXPAND_TEMPLATE = Template("""请将以下问题改写为{{ n }}个不同的检索查询，每行一个。
+要求：围绕同一主题，从不同角度表述。只输出查询，每行一个。
+
+问题：{{ query }}
+
+{{ n }}个查询：""")
+
+
+# LLM 重排模板
+LLM_RERANK_TEMPLATE = Template("""判断以下文档与查询的相关性，只输出保留的文档编号。
+
+查询：{{ query }}
+
+候选文档：
+{{ docs_text }}
+
+规则：
+- 只要文档包含与查询相关的信息就保留
+- 只输出保留的文档编号，用逗号分隔
+- 格式示例：2,5,1
+
+保留的文档编号：""")
+
+
+# 回答生成模板
+ANSWER_TEMPLATE = Template("""你是讯飞产品知识库的智能助手。请根据以下所有文档内容回答用户问题。
+
+回答策略：
+1. 优先基于知识库文档回答
+2. 如果知识库中有相关信息，直接使用
+3. 如果知识库中没有完全匹配的信息，但有相关产品信息，结合已有信息回答
+4. 如果知识库中完全没有相关信息，使用你自己的知识补充回答，并说明"以下为通用知识补充"
+
+知识库全部文档（共{{ doc_count }}个）：
+{{ context }}
+
+用户问题：{{ query }}
+
+直接回答（不要说"好的"、"作为助手"等开场白）：""")
 
 
 # ========== 模板管理器 ==========
@@ -101,11 +179,19 @@ class PromptTemplateManager:
 
     def __init__(self):
         self.templates = {
+            # 文档处理类
             "document_cleanup": DOCUMENT_CLEANUP_TEMPLATE,
             "product_extraction": PRODUCT_EXTRACTION_TEMPLATE,
             "faq_generation": FAQ_GENERATION_TEMPLATE,
             "troubleshooting": TROUBLESHOOT_TEMPLATE,
-            "query_enhance": QUERY_ENHANCE_TEMPLATE,
+            # 对话生成类
+            "chat": CHAT_TEMPLATE,
+            # 查询增强类
+            "hyde": HYDE_TEMPLATE,
+            "query_rewrite": QUERY_REWRITE_TEMPLATE,
+            "query_expand": QUERY_EXPAND_TEMPLATE,
+            "llm_rerank": LLM_RERANK_TEMPLATE,
+            "answer": ANSWER_TEMPLATE,
         }
 
     def render(self, template_name: str, **kwargs) -> str:
@@ -114,6 +200,7 @@ class PromptTemplateManager:
             raise ValueError(f"模板 '{template_name}' 不存在。可用模板: {list(self.templates.keys())}")
 
         template = self.templates[template_name]
+        print(f"  [Jinja2模板] 渲染模板: {template_name} | 参数: {list(kwargs.keys())}")
         return template.render(**kwargs)
 
     def list_templates(self) -> list:
@@ -133,7 +220,12 @@ class PromptTemplateManager:
             "product_extraction": {"product_name": "讯飞智能办公本X2", "content": "示例产品文档..."},
             "faq_generation": {"product_name": "讯飞AI录音卡", "content": "示例产品文档..."},
             "troubleshooting": {"product_name": "讯飞翻译机", "content": "示例产品文档..."},
-            "query_enhance": {"query": "这个东西咋用", "requirement": "使用书面语，补充产品全称"},
+            "chat": {"history_context": "用户: 讯飞有哪些产品", "kb_result": "文档1: 讯飞录音笔...", "query": "讯飞翻译机多少钱"},
+            "hyde": {"query": "讯飞办公本有什么功能"},
+            "query_rewrite": {"query": "这个东西咋用"},
+            "query_expand": {"query": "讯飞翻译机", "n": 3},
+            "llm_rerank": {"query": "翻译机", "docs_text": "[文档1] ...\n[文档2] ..."},
+            "answer": {"doc_count": 5, "context": "文档1: ...\n文档2: ...", "query": "讯飞产品有哪些"},
         }
 
         if template_name in examples:

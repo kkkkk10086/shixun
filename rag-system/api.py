@@ -10,12 +10,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 
-from config import DOCS_DIR, CHROMA_PERSIST_DIR, RETRIEVAL_TOP_K, RERANK_TOP_K
+from config import DOCS_DIR, CHROMA_PERSIST_DIR, RETRIEVAL_TOP_K, RERANK_TOP_K, OUTPUT_DIR
 from document_processor import process_documents, save_chunks, save_markdown
 from embedding_store import create_vectorstore, load_vectorstore, basic_search
 from query_enhancer import enhanced_retrieval
@@ -40,6 +40,17 @@ class QueryRequest(BaseModel):
     mode: str = "enhanced"
     top_k: int = 3
     agent_mode: str = "none"  # none / react / plan_and_solve / reflection
+
+
+class EvaluateRequest(BaseModel):
+    query: str
+    ground_truth: Optional[str] = None
+    top_k: int = 5
+
+
+class BatchEvaluateRequest(BaseModel):
+    test_cases: List[dict]  # [{"query": "...", "ground_truth": "..."}, ...]
+    top_k: int = 5
 
 
 class QueryResponse(BaseModel):
@@ -121,6 +132,11 @@ async def root():
     return FileResponse("frontend/index.html")
 
 
+@app.get("/evaluate")
+async def evaluate_page():
+    return FileResponse("frontend/evaluate.html")
+
+
 @app.post("/api/query")
 async def query(request: QueryRequest):
     global collection
@@ -132,110 +148,39 @@ async def query(request: QueryRequest):
     if request.agent_mode and request.agent_mode != "none":
         from agent_paradigms import run_agent
 
-        # 工具：智能检索（关键词匹配 + TF-IDF 补充）
+        # 工具：直接复用 rag_tools 的检索逻辑（和聊天系统一致）
         def search_knowledge(query_text: str) -> str:
             """从知识库检索相关信息"""
-            try:
-                all_docs = []
-                seen = set()
+            from rag_tools import set_collection, search_knowledge_base
+            set_collection(collection)
+            return search_knowledge_base.invoke(query_text)
 
-                # 获取所有文档
-                total = collection.count()
-                all_results = collection.get(limit=min(total, 200))
-                all_db_docs = all_results["documents"] if all_results["documents"] else []
-
-                # 提取搜索词
-                search_terms = [query_text]
-                try:
-                    import jieba.analyse
-                    keywords = jieba.analyse.extract_tags(query_text, topK=10)
-                    search_terms.extend(keywords)
-                except Exception:
-                    pass
-
-                # 关键词匹配
-                for doc in all_db_docs:
-                    match_count = sum(1 for term in search_terms if term in doc)
-                    if match_count >= 1:
-                        h = hash(doc)
-                        if h not in seen:
-                            seen.add(h)
-                            all_docs.append((match_count, doc))
-
-                all_docs.sort(key=lambda x: x[0], reverse=True)
-
-                # 关键词过滤
-                noise_words = ["隐私", "政策", "注销", "快递", "物流", "顺丰", "个人信息", "JWT", "private String"]
-                product_docs = [(s, d) for s, d in all_docs if not any(nw in d for nw in noise_words)]
-
-                # 如果过滤后太少，补充所有文档
-                if len(product_docs) < 3:
-                    for doc in all_db_docs:
-                        h = hash(doc)
-                        if h not in seen:
-                            seen.add(h)
-                            product_docs.append((0, doc))
-
-                docs_only = [d for _, d in product_docs]
-
-                # 关键：如果查询包含特定产品名，确保该产品文档排在最前面
-                product_map = {
-                    "鼠标": ["鼠标", "AM50"],
-                    "键盘": ["键盘", "T8"],
-                    "翻译机": ["翻译机"],
-                    "录音笔": ["录音笔", "录音"],
-                    "办公本": ["办公本", "X2"],
-                    "词典笔": ["词典笔", "X8"],
-                    "学习机": ["学习机", "S90"],
-                    "英语宝": ["英语宝", "EBOX"],
-                    "录音卡": ["录音卡"]
-                }
-
-                for product_name, product_keywords in product_map.items():
-                    if product_name in query_text:
-                        # 找到包含该产品关键词的文档，排到最前面
-                        product_docs_list = [(s, d) for s, d in product_docs if any(kw in d for kw in product_keywords)]
-                        other_docs = [(s, d) for s, d in product_docs if not any(kw in d for kw in product_keywords)]
-                        product_docs = product_docs_list + other_docs
-                        docs_only = [d for _, d in product_docs]
-                        print(f"  [知识库] 优先排序 '{product_name}' 相关文档: {len(product_docs_list)} 个")
-                        break
-
-                print(f"  [知识库] 检索到 {len(docs_only)} 个相关文档")
-                return "\n".join([f"[文档{i+1}] {d[:400]}" for i, d in enumerate(docs_only[:20])])
-            except Exception as e:
-                return f"检索出错: {e}"
-
-                docs_only = [d for _, d in product_docs]
-                print(f"  [知识库] 检索到 {len(docs_only)} 个相关文档")
-                return "\n".join([f"[文档{i+1}] {d[:400]}" for i, d in enumerate(docs_only[:20])])
-            except Exception as e:
-                return f"检索出错: {e}"
-
-        # 工具2：发给 DeepSeek 分析（带兜底）
+        # 工具2：发给 DeepSeek 分析（强制基于文档）
         def analyze_with_llm(query_and_docs: str) -> str:
-            """将问题和文档发给 DeepSeek 分析，知识库没有时用通用知识补充"""
+            """将问题和文档发给 DeepSeek 分析，严格基于文档内容"""
             try:
                 from openai import OpenAI
                 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
                 llm = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
 
-                prompt = f"""你是讯飞产品知识库的智能助手。
+                prompt = f"""你是讯飞产品知识库的智能助手。请严格基于以下知识库文档回答问题。
 
-回答策略：
-1. 优先基于提供的文档回答
-2. 如果文档中有相关信息，直接使用
-3. 如果文档中没有完全匹配的信息，结合已有信息回答
-4. 如果文档中完全没有相关信息，使用你自己的知识补充回答，并说明"以下为通用知识补充"
+重要规则：
+1. 必须基于文档中实际存在的信息回答，逐个检查每个文档
+2. 如果文档中有相关信息，必须详细提取并整理成回答
+3. 如果文档中有部分内容与问题相关，也要整理出来，不要因为不完全匹配就忽略
+4. 如果文档中确实没有相关信息，列出文档中与查询最相关的片段
+5. 绝对不要编造产品参数、功能、价格等信息
+6. 回答要详细、完整，不要过于简短
 
 {query_and_docs}
 
-直接回答："""
+基于文档内容回答："""
 
                 response = llm.chat.completions.create(
                     model=DEEPSEEK_MODEL,
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=800,
+                    max_tokens=2000,
                     temperature=0.3
                 )
                 return response.choices[0].message.content.strip()
@@ -379,6 +324,276 @@ async def clear_chat(session_id: str = "default"):
     from conversation_memory import memory
     memory.clear(session_id)
     return {"status": "cleared"}
+
+
+@app.post("/api/chat_stream")
+async def chat_stream(request: ChatRequest):
+    """流式输出接口（SSE 打字机效果）"""
+    global collection
+
+    if collection is None:
+        raise HTTPException(status_code=400, detail="向量数据库未初始化")
+
+    from smart_assistant import init_assistant
+    init_assistant(collection)
+
+    def generate():
+        try:
+            # 获取检索结果
+            from rag_tools import search_knowledge_base, list_all_products
+            list_keywords = ["几款", "有哪些", "什么产品", "产品列表", "全部", "所有", "多少"]
+            if any(kw in request.query for kw in list_keywords):
+                kb_result = list_all_products.invoke("")
+            else:
+                kb_result = search_knowledge_base.invoke(request.query)
+
+            # 获取对话历史
+            from conversation_memory import memory
+            history_context = memory.get_context(request.session_id, last_n=5)
+
+            yield f"data: {__import__('json').dumps({'type': 'status', 'content': '正在分析...'})}\n\n"
+
+            # 流式调用 DeepSeek
+            from openai import OpenAI
+            from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+            llm = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+
+            from prompt_templates import template_manager
+            prompt = template_manager.render("chat",
+                history_context=history_context,
+                kb_result=kb_result,
+                query=request.query
+            )
+
+            response = llm.chat.completions.create(
+                model=DEEPSEEK_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=800,
+                temperature=0.3,
+                stream=True
+            )
+
+            full_answer = ""
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    full_answer += text
+                    yield f"data: {__import__('json').dumps({'type': 'chunk', 'content': text})}\n\n"
+
+            # 保存对话记录
+            memory.add_user_message(request.query, request.session_id)
+            memory.add_ai_message(full_answer, request.session_id)
+
+            yield f"data: {__import__('json').dumps({'type': 'done', 'content': ''})}\n\n"
+
+        except Exception as e:
+            yield f"data: {__import__('json').dumps({'type': 'error', 'content': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.post("/api/evaluate")
+async def evaluate_query(request: EvaluateRequest):
+    """单个查询评估"""
+    global collection
+
+    if collection is None:
+        raise HTTPException(status_code=400, detail="向量数据库未初始化")
+
+    from ragas_evaluator import get_evaluator
+
+    evaluator = get_evaluator(collection)
+    result = evaluator.evaluate_single(
+        query=request.query,
+        ground_truth=request.ground_truth,
+        top_k=request.top_k
+    )
+
+    return result
+
+
+@app.post("/api/evaluate/batch")
+async def evaluate_batch(request: BatchEvaluateRequest):
+    """批量评估"""
+    global collection
+
+    if collection is None:
+        raise HTTPException(status_code=400, detail="向量数据库未初始化")
+
+    from ragas_evaluator import get_evaluator, DEFAULT_TEST_CASES
+
+    evaluator = get_evaluator(collection)
+
+    # 如果没有提供测试用例，使用默认用例
+    test_cases = request.test_cases if request.test_cases else DEFAULT_TEST_CASES
+
+    result = evaluator.evaluate_batch(test_cases, top_k=request.top_k)
+
+    # 保存报告
+    report_path = evaluator.save_report(result)
+    json_path = evaluator.save_results_json(result)
+
+    return {
+        **result,
+        "report_path": report_path,
+        "json_path": json_path
+    }
+
+
+@app.post("/api/evaluate/auto-generate")
+async def auto_generate_testcases():
+    """AI根据知识库自动生成测试用例"""
+    global collection
+
+    if collection is None:
+        raise HTTPException(status_code=400, detail="向量数据库未初始化，请先上传文档")
+
+    try:
+        # 获取知识库所有文档摘要
+        total = collection.count()
+        all_results = collection.get(limit=min(total, 100))
+        all_docs = all_results["documents"] if all_results["documents"] else []
+
+        if not all_docs:
+            raise HTTPException(status_code=400, detail="知识库为空，请先上传文档")
+
+        # 提取文档摘要（每个文档取前300字符）
+        doc_summaries = []
+        seen = set()
+        for doc in all_docs:
+            short = doc[:300]
+            h = hash(short)
+            if h not in seen:
+                seen.add(h)
+                doc_summaries.append(short)
+
+        docs_text = "\n".join([f"[文档{i+1}] {s}" for i, s in enumerate(doc_summaries[:30])])
+
+        # 用 DeepSeek 生成测试用例
+        from openai import OpenAI
+        from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+        llm = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+
+        prompt = f"""你是测试工程师。根据以下知识库文档内容，生成5个测试用例，用于验证RAG检索系统的质量。
+
+知识库文档摘要：
+{docs_text}
+
+要求：
+1. 每个测试用例包含：query（测试问题）、ground_truth（标准答案）
+2. 问题要多样化：有的问具体产品参数、有的问功能对比、有的问产品列表、有的问使用方法
+3. 标准答案必须基于文档中的实际内容，不要编造
+4. 输出严格的JSON数组格式，不要包含任何其他文字
+
+只输出JSON数组：
+[
+  {{"query": "测试问题1", "ground_truth": "标准答案1"}},
+  {{"query": "测试问题2", "ground_truth": "标准答案2"}},
+  {{"query": "测试问题3", "ground_truth": "标准答案3"}},
+  {{"query": "测试问题4", "ground_truth": "标准答案4"}},
+  {{"query": "测试问题5", "ground_truth": "标准答案5"}}
+]"""
+
+        response = llm.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2000,
+            temperature=0.3
+        )
+
+        result_text = response.choices[0].message.content.strip()
+        print(f"[AI用例] 原始返回: {result_text[:200]}...")
+
+        # 清理 markdown 标记
+        if result_text.startswith("```"):
+            result_text = result_text.split("\n", 1)[1]
+            if result_text.endswith("```"):
+                result_text = result_text[:-3]
+            result_text = result_text.strip()
+
+        import json
+        test_cases = json.loads(result_text)
+
+        if not isinstance(test_cases, list) or len(test_cases) == 0:
+            raise Exception("AI返回的不是有效的JSON数组")
+
+        print(f"[AI用例] 成功生成 {len(test_cases)} 个测试用例")
+        return {"test_cases": test_cases, "source_docs_count": len(doc_summaries)}
+
+    except json.JSONDecodeError as e:
+        print(f"[AI用例] JSON解析失败: {e}")
+        print(f"[AI用例] 原始文本: {result_text[:500]}")
+        raise HTTPException(status_code=500, detail=f"AI返回的内容无法解析为JSON: {result_text[:200]}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[AI用例] 生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"生成测试用例失败: {str(e)}")
+
+
+@app.get("/api/evaluate/reports")
+async def list_reports():
+    """获取所有评估报告列表"""
+    output_dir = OUTPUT_DIR
+
+    if not os.path.exists(output_dir):
+        return {"reports": []}
+
+    report_files = sorted(
+        [f for f in os.listdir(output_dir) if f.startswith("ragas_report_")],
+        reverse=True
+    )
+
+    reports = []
+    for f in report_files:
+        filepath = os.path.join(output_dir, f)
+        stat = os.stat(filepath)
+        # 从文件名提取时间: ragas_report_20260722_141513.md
+        time_str = f.replace("ragas_report_", "").replace(".md", "")
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(time_str, "%Y%m%d_%H%M%S")
+            display_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            display_time = time_str
+
+        reports.append({
+            "filename": f,
+            "display_time": display_time,
+            "size": f"{stat.st_size / 1024:.1f}KB"
+        })
+
+    return {"reports": reports}
+
+
+@app.get("/api/evaluate/report")
+async def get_report(filename: str = None):
+    """获取指定评估报告内容，不传则获取最新"""
+    output_dir = OUTPUT_DIR
+
+    if not os.path.exists(output_dir):
+        return {"error": "无评估报告"}
+
+    if filename:
+        # 获取指定报告
+        report_path = os.path.join(output_dir, filename)
+        if not os.path.exists(report_path):
+            return {"error": f"报告 {filename} 不存在"}
+    else:
+        # 获取最新报告
+        report_files = sorted([f for f in os.listdir(output_dir) if f.startswith("ragas_report_")])
+        if not report_files:
+            return {"error": "无评估报告"}
+        filename = report_files[-1]
+        report_path = os.path.join(output_dir, filename)
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        report_content = f.read()
+
+    return {
+        "filename": filename,
+        "content": report_content
+    }
 
 
 @app.get("/api/files")

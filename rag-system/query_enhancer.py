@@ -52,12 +52,8 @@ def hyde_query(query: str, collection) -> str:
     """用 DeepSeek 生成假设性文档，再用它去检索"""
     llm = get_llm()
 
-    prompt = f"""请根据以下问题，写一段详细的回答（约150字）。
-要求：回答要具体、包含产品名称和技术参数。只输出回答内容。
-
-问题：{query}
-
-回答："""
+    from prompt_templates import template_manager
+    prompt = template_manager.render("hyde", query=query)
 
     try:
         response = llm.chat.completions.create(
@@ -80,12 +76,8 @@ def rewrite_query(query: str) -> str:
     """用 DeepSeek 将口语化问题重写为更适合检索的形式"""
     llm = get_llm()
 
-    prompt = f"""将以下问题重写为更适合知识库检索的形式。
-要求：保留核心语义，补充产品全称，使用书面语。只输出重写后的查询。
-
-问题：{query}
-
-重写："""
+    from prompt_templates import template_manager
+    prompt = template_manager.render("query_rewrite", query=query)
 
     try:
         response = llm.chat.completions.create(
@@ -108,12 +100,8 @@ def expand_queries(query: str, n: int = 3) -> list:
     """用 DeepSeek 将一个问题扩展为多个不同角度的查询"""
     llm = get_llm()
 
-    prompt = f"""请将以下问题改写为{n}个不同的检索查询，每行一个。
-要求：围绕同一主题，从不同角度表述。只输出查询，每行一个。
-
-问题：{query}
-
-{n}个查询："""
+    from prompt_templates import template_manager
+    prompt = template_manager.render("query_expand", query=query, n=n)
 
     try:
         response = llm.chat.completions.create(
@@ -150,19 +138,8 @@ def llm_rerank(query: str, documents: list, top_k: int = 3) -> list:
     for i, doc in enumerate(documents):
         docs_text += f"[文档{i+1}] {doc[:250]}\n\n"
 
-    prompt = f"""判断以下文档与查询的相关性，只输出保留的文档编号。
-
-查询：{query}
-
-候选文档：
-{docs_text}
-
-规则：
-- 只要文档包含与查询相关的信息就保留
-- 只输出保留的文档编号，用逗号分隔
-- 格式示例：2,5,1
-
-保留的文档编号："""
+    from prompt_templates import template_manager
+    prompt = template_manager.render("llm_rerank", query=query, docs_text=docs_text)
 
     try:
         response = llm.chat.completions.create(
@@ -328,20 +305,8 @@ def generate_answer(query: str, documents: list, collection=None) -> str:
     # 拼接所有文档（全部发送，不截断）
     context = "\n\n".join([f"【文档{i+1}】{doc}" for i, doc in enumerate(all_docs)])
 
-    prompt = f"""你是讯飞产品知识库的智能助手。请根据以下所有文档内容回答用户问题。
-
-回答策略：
-1. 优先基于知识库文档回答
-2. 如果知识库中有相关信息，直接使用
-3. 如果知识库中没有完全匹配的信息，但有相关产品信息，结合已有信息回答
-4. 如果知识库中完全没有相关信息，使用你自己的知识补充回答，并说明"以下为通用知识补充"
-
-知识库全部文档（共{len(all_docs)}个）：
-{context}
-
-用户问题：{query}
-
-直接回答（不要说"好的"、"作为助手"等开场白）："""
+    from prompt_templates import template_manager
+    prompt = template_manager.render("answer", doc_count=len(all_docs), context=context, query=query)
 
     try:
         response = llm.chat.completions.create(

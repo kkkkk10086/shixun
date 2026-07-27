@@ -5,6 +5,8 @@
 
 import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from openai import OpenAI
 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, OUTPUT_DIR
 
@@ -136,4 +138,44 @@ def save_structured_json(products: list, output_dir: str = OUTPUT_DIR):
 
 if __name__ == "__main__":
     print("结构化数据提取模块")
-    print("请通过 api.py 调用")
+    from embedding_store import load_vectorstore
+    from document_processor import process_documents
+    import os
+
+    # 加载向量数据库
+    collection, _ = load_vectorstore()
+    total = collection.count()
+    all_results = collection.get(limit=min(total, 200))
+    all_docs = all_results["documents"]
+
+    # 按文件分组
+    chunks_dict = {}
+    current_file = "unknown"
+    for doc in all_docs:
+        # 简单分组：按产品关键词
+        if "录音笔" in doc or "录音" in doc:
+            current_file = "讯飞AI录音笔"
+        elif "翻译机" in doc:
+            current_file = "讯飞翻译机"
+        elif "办公本" in doc:
+            current_file = "智能办公本"
+        elif "词典笔" in doc:
+            current_file = "讯飞词典笔"
+        elif "学习机" in doc:
+            current_file = "讯飞学习机"
+        elif "键盘" in doc:
+            current_file = "讯飞机械键盘"
+        elif "鼠标" in doc:
+            current_file = "讯飞鼠标"
+        elif "英语宝" in doc or "EBOX" in doc:
+            current_file = "讯飞英语宝"
+        elif "录音卡" in doc:
+            current_file = "讯飞录音卡"
+
+        if current_file not in chunks_dict:
+            chunks_dict[current_file] = []
+        chunks_dict[current_file].append(doc)
+
+    print(f"共 {len(chunks_dict)} 个产品组")
+    products = batch_extract(chunks_dict)
+    save_structured_json(products)

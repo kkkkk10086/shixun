@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGAS 评估系统 - RAG 智能检索</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+
+        .navbar {
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar .nav-links { display: flex; gap: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; opacity: 0.9; }
+        .navbar a:hover { opacity: 1; }
+
+        .main { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
+
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+        .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1a73e8; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 12px 16px; border: 2px solid #e0e5ec; border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus { border-color: #1a73e8; }
+        .form-group textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #1a73e8, #1565c0); color: white; }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-secondary { background: #f0f2f5; color: #555; }
+        .btn-secondary:hover { background: #e0e2e5; }
+        .btn-danger { background: #ffebee; color: #c62828; }
+        .btn-danger:hover { background: #ffcdd2; }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .btn-group { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metric-card { background: linear-gradient(135deg, #f8f9ff, #eef2ff); border: 1px solid #e0e8ff; border-radius: 12px; padding: 20px; text-align: center; }
+        .metric-value { font-size: 28px; font-weight: 700; color: #1a73e8; }
+        .metric-label { font-size: 12px; color: #666; margin-top: 4px; }
+        .metric-card.excellent .metric-value { color: #2e7d32; }
+        .metric-card.good .metric-value { color: #1565c0; }
+        .metric-card.average .metric-value { color: #f57c00; }
+        .metric-card.poor .metric-value { color: #c62828; }
+
+        .query-result { background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .query-result .query-text { font-weight: 600; color: #1a73e8; margin-bottom: 8px; }
+        .query-result .answer-text { font-size: 14px; line-height: 1.6; color: #555; margin-bottom: 12px; }
+        .query-result .metrics-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .query-result .metric-badge { background: white; border: 1px solid #e0e5ec; padding: 4px 10px; border-radius: 16px; font-size: 11px; }
+
+        .citation-item { background: white; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px; color: #555; }
+        .citation-item .doc-index { font-weight: 600; color: #1a73e8; margin-right: 8px; }
+
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #e0e5ec; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .report-content { background: #f8f9fa; border-radius: 8px; padding: 20px; white-space: pre-wrap; font-family: monospace; font-size: 13px; max-height: 600px; overflow-y: auto; line-height: 1.6; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+
+        /* 批量评估 - 动态题目 */
+        .tc-item { background: #f8f9fa; border: 1px solid #e0e5ec; border-radius: 10px; padding: 16px; margin-bottom: 12px; position: relative; }
+        .tc-item .tc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .tc-item .tc-num { font-weight: 700; color: #1a73e8; font-size: 15px; }
+        .tc-item .tc-remove { background: none; border: none; color: #c62828; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 4px; }
+        .tc-item .tc-remove:hover { background: #ffebee; }
+        .tc-item .tc-fields { display: flex; flex-direction: column; gap: 10px; }
+        .tc-item input, .tc-item textarea {
+            width: 100%; padding: 10px 14px; border: 1.5px solid #e0e5ec; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit;
+        }
+        .tc-item input:focus, .tc-item textarea:focus { border-color: #1a73e8; }
+        .tc-item textarea { min-height: 60px; resize: vertical; }
+        .tc-item label { font-size: 12px; color: #888; margin-bottom: 2px; }
+
+        /* 报告列表 */
+        .report-list { margin-bottom: 20px; }
+        .report-list-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; border: 1.5px solid #e0e5ec; border-radius: 10px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .report-list-item:hover { border-color: #1a73e8; background: #f0f4ff; }
+        .report-list-item.active { border-color: #1a73e8; background: #e8f0fe; }
+        .report-list-item .ri-info { display: flex; flex-direction: column; gap: 4px; }
+        .report-list-item .ri-name { font-weight: 600; font-size: 14px; color: #333; }
+        .report-list-item .ri-meta { font-size: 12px; color: #999; }
+        .report-list-item .ri-arrow { color: #1a73e8; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div>
+            <h1>RAGAS 评估系统</h1>
+        </div>
+        <div class="nav-links">
+            <a href="/">返回主页</a>
+        </div>
+    </nav>
+
+    <div class="main">
+        <div class="card">
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="showSection('single')" id="btnSingle">单个查询评估</button>
+                <button class="btn btn-secondary" onclick="showSection('batch')" id="btnBatch">批量评估</button>
+                <button class="btn btn-secondary" onclick="showSection('report')" id="btnReport">查看报告</button>
+            </div>
+        </div>
+
+        <!-- 单个查询评估 -->
+        <div class="card" id="sectionSingle">
+            <h2>单个查询评估</h2>
+            <div class="form-group">
+                <label>查询内容</label>
+                <input type="text" id="evalQuery" placeholder="例如：讯飞智能办公本X2有什么功能？">
+            </div>
+            <div class="form-group">
+                <label>标准答案（可选，用于计算召回率）</label>
+                <textarea id="evalGroundTruth" placeholder="例如：讯飞智能办公本X2具有语音转写、手写识别、会议纪要等功能..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>检索数量</label>
+                <select id="evalTopK">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="runSingleEval()">开始评估</button>
+            </div>
+            <div id="singleResult"></div>
+        </div>
+
+        <!-- 批量评估 -->
+        <div class="card" id="sectionBatch" style="display:none">
+            <h2>批量评估</h2>
+            <p style="color: #666; margin-bottom: 16px;">自定义测试题目，添加后点击"开始批量评估"。</p>
+
+            <div id="batchCases"></div>
+
+            <div class="btn-group" style="margin-top: 8px;">
+                <button class="btn btn-secondary btn-sm" onclick="addTestCase()">+ 添加题目</button>
+                <button class="btn btn-primary btn-sm" onclick="aiGenerateCases()" id="btnAiGenerate">AI 自动生成测试用例</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 16px;">
+                <label>检索数量</label>
+                <select id="batchTopK">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="runBatchEval()">开始批量评估</button>
+            </div>
+            <div id="batchResult"></div>
+        </div>
+
+        <!-- 查看报告 -->
+        <div class="card" id="sectionReport" style="display:none">
+            <h2>评估报告</h2>
+            <div class="btn-group" style="margin-bottom: 16px;">
+                <button class="btn btn-secondary btn-sm" onclick="loadReportList()">刷新列表</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px;">
+                <div>
+                    <div class="report-list" id="reportList">
+                        <div class="empty-state" style="padding:20px">暂无报告</div>
+                    </div>
+                </div>
+                <div id="reportContent">
+                    <div class="empty-state">选择左侧报告查看内容</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var batchCaseCount = 0;
+
+        function showSection(section) {
+            document.getElementById('sectionSingle').style.display = section === 'single' ? 'block' : 'none';
+            document.getElementById('sectionBatch').style.display = section === 'batch' ? 'block' : 'none';
+            document.getElementById('sectionReport').style.display = section === 'report' ? 'block' : 'none';
+
+            document.getElementById('btnSingle').className = 'btn ' + (section === 'single' ? 'btn-primary' : 'btn-secondary');
+            document.getElementById('btnBatch').className = 'btn ' + (section === 'batch' ? 'btn-primary' : 'btn-secondary');
+            document.getElementById('btnReport').className = 'btn ' + (section === 'report' ? 'btn-primary' : 'btn-secondary');
+
+            if (section === 'report') loadReportList();
+        }
+
+        // ========== 单个查询评估 ==========
+        async function runSingleEval() {
+            var query = document.getElementById('evalQuery').value.trim();
+            if (!query) { alert('请输入查询内容'); return; }
+            var groundTruth = document.getElementById('evalGroundTruth').value.trim();
+            var topK = parseInt(document.getElementById('evalTopK').value);
+            var resultDiv = document.getElementById('singleResult');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在评估中，请稍候...</p></div>';
+            try {
+                var resp = await fetch('/api/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, ground_truth: groundTruth || null, top_k: topK })
+                });
+                var data = await resp.json();
+                if (data.detail) { resultDiv.innerHTML = '<div class="empty-state">错误: ' + data.detail + '</div>'; return; }
+                renderSingleResult(data, resultDiv);
+            } catch (e) { resultDiv.innerHTML = '<div class="empty-state">评估失败: ' + e.message + '</div>'; }
+        }
+
+        function renderSingleResult(data, container) {
+            var metrics = data.metrics;
+            var html = '<div class="result-section">';
+            html += '<h3>评估指标</h3><div class="metrics-grid">';
+            var metricNames = { 'context_precision': '上下文精度', 'context_recall': '上下文召回', 'faithfulness': '忠实度', 'answer_relevancy': '答案相关性', 'citation_accuracy': '引用准确性', 'overall_score': '综合评分' };
+            for (var key in metricNames) {
+                var v = metrics[key] || 0;
+                var cls = v >= 0.8 ? 'excellent' : v >= 0.6 ? 'good' : v >= 0.4 ? 'average' : 'poor';
+                html += '<div class="metric-card ' + cls + '"><div class="metric-value">' + (v * 100).toFixed(1) + '%</div><div class="metric-label">' + metricNames[key] + '</div></div>';
+            }
+            html += '</div>';
+            html += '<h3>生成的回答</h3><div class="query-result"><div class="answer-text">' + (data.answer || '').replace(/\n/g, '<br>') + '</div>';
+            if (data.citations && data.citations.length > 0) {
+                html += '<div style="margin-top:10px"><strong>引用来源 (' + data.citations.length + '条):</strong>';
+                data.citations.forEach(function(c) {
+                    html += '<div class="citation-item"><span class="doc-index">文档' + (c.doc_index || '?') + '</span>' + (c.cited_text || '').substring(0, 100) + '...</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+            if (data.contexts && data.contexts.length > 0) {
+                html += '<h3>检索到的文档 (' + data.contexts.length + '条)</h3>';
+                data.contexts.forEach(function(ctx, i) { html += '<div class="citation-item"><span class="doc-index">[文档' + (i+1) + ']</span> ' + ctx.substring(0, 200) + '...</div>'; });
+            }
+            html += '</div><p style="margin-top:12px;color:#888;font-size:12px;">评估耗时: ' + (data.evaluation_time || 0) + '秒</p>';
+            container.innerHTML = html;
+        }
+
+        // ========== 批量评估（动态题目） ==========
+        function addTestCase(query, truth) {
+            batchCaseCount++;
+            var id = batchCaseCount;
+            var container = document.getElementById('batchCases');
+            var div = document.createElement('div');
+            div.className = 'tc-item';
+            div.id = 'tc_' + id;
+            div.innerHTML =
+                '<div class="tc-header"><span class="tc-num">题目 ' + id + '</span><button class="tc-remove" onclick="removeTestCase(' + id + ')">&times;</button></div>' +
+                '<div class="tc-fields">' +
+                '<div><label>查询内容 *</label><input type="text" class="tc-query" placeholder="例如：讯飞翻译机支持哪些语言？" value="' + (query || '') + '"></div>' +
+                '<div><label>标准答案（可选）</label><textarea class="tc-truth" placeholder="用于计算召回率，可不填">' + (truth || '') + '</textarea></div>' +
+                '</div>';
+            container.appendChild(div);
+        }
+
+        function removeTestCase(id) {
+            var el = document.getElementById('tc_' + id);
+            if (el) el.remove();
+        }
+
+        function getTestCases() {
+            var items = document.querySelectorAll('#batchCases .tc-item');
+            var cases = [];
+            items.forEach(function(item) {
+                var q = item.querySelector('.tc-query').value.trim();
+                var t = item.querySelector('.tc-truth').value.trim();
+                if (q) cases.push({ query: q, ground_truth: t || null });
+            });
+            return cases;
+        }
+
+        async function runBatchEval() {
+            var cases = getTestCases();
+            if (cases.length === 0) { alert('请至少添加一个题目'); return; }
+            var topK = parseInt(document.getElementById('batchTopK').value);
+            var resultDiv = document.getElementById('batchResult');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>批量评估中（' + cases.length + '个题目），请稍候...</p></div>';
+            try {
+                var resp = await fetch('/api/evaluate/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_cases: cases, top_k: topK })
+                });
+                var data = await resp.json();
+                if (data.detail) { resultDiv.innerHTML = '<div class="empty-state">错误: ' + data.detail + '</div>'; return; }
+                renderBatchResult(data, resultDiv);
+            } catch (e) { resultDiv.innerHTML = '<div class="empty-state">批量评估失败: ' + e.message + '</div>'; }
+        }
+
+        function renderBatchResult(data, container) {
+            var avg = data.average_metrics;
+            var html = '<div class="result-section">';
+            html += '<h3>平均评估指标</h3><div class="metrics-grid">';
+            var metricNames = { 'context_precision': '上下文精度', 'context_recall': '上下文召回', 'faithfulness': '忠实度', 'answer_relevancy': '答案相关性', 'citation_accuracy': '引用准确性', 'overall_score': '综合评分' };
+            for (var key in metricNames) {
+                var v = avg[key] || 0;
+                var cls = v >= 0.8 ? 'excellent' : v >= 0.6 ? 'good' : v >= 0.4 ? 'average' : 'poor';
+                html += '<div class="metric-card ' + cls + '"><div class="metric-value">' + (v * 100).toFixed(1) + '%</div><div class="metric-label">' + metricNames[key] + '</div></div>';
+            }
+            html += '</div>';
+            if (data.results) {
+                html += '<h3>各用例详细结果</h3>';
+                data.results.forEach(function(r, i) {
+                    html += '<div class="query-result"><div class="query-text">用例 ' + (i+1) + ': ' + r.query + '</div>';
+                    html += '<div class="answer-text">' + (r.answer || '').substring(0, 200) + '...</div>';
+                    html += '<div class="metrics-row">';
+                    for (var m in r.metrics) { html += '<span class="metric-badge">' + m + ': ' + (r.metrics[m] * 100).toFixed(1) + '%</span>'; }
+                    html += '</div></div>';
+                });
+            }
+            html += '</div><p style="margin-top:12px;color:#888;font-size:12px;">评估耗时: ' + (data.evaluation_time || 0) + '秒</p>';
+            if (data.report_path) html += '<p style="color:#1a73e8;font-size:12px;">报告已保存</p>';
+            container.innerHTML = html;
+        }
+
+        // ========== AI 自动生成测试用例 ==========
+        async function aiGenerateCases() {
+            var btn = document.getElementById('btnAiGenerate');
+            btn.disabled = true;
+            btn.textContent = 'AI 生成中...';
+
+            try {
+                var resp = await fetch('/api/evaluate/auto-generate', { method: 'POST' });
+                var data = await resp.json();
+
+                if (data.detail) {
+                    alert('生成失败: ' + data.detail);
+                    return;
+                }
+
+                // 清空现有题目
+                document.getElementById('batchCases').innerHTML = '';
+                batchCaseCount = 0;
+
+                // 填入AI生成的用例
+                if (data.test_cases) {
+                    data.test_cases.forEach(function(tc) {
+                        addTestCase(tc.query || '', tc.ground_truth || '');
+                    });
+                }
+
+                alert('AI 已生成 ' + data.test_cases.length + ' 个测试用例（基于 ' + data.source_docs_count + ' 个文档）');
+            } catch (e) {
+                alert('生成失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'AI 自动生成测试用例';
+            }
+        }
+
+        // ========== 查看报告（列表 + 点击浏览） ==========
+        async function loadReportList() {
+            var listDiv = document.getElementById('reportList');
+            try {
+                var resp = await fetch('/api/evaluate/reports');
+                var data = await resp.json();
+                if (!data.reports || data.reports.length === 0) {
+                    listDiv.innerHTML = '<div class="empty-state" style="padding:20px">暂无报告</div>';
+                    return;
+                }
+                var html = '';
+                data.reports.forEach(function(r) {
+                    html += '<div class="report-list-item" onclick="loadReportContent(\'' + r.filename + '\', this)">';
+                    html += '<div class="ri-info"><div class="ri-name">' + r.display_time + '</div><div class="ri-meta">' + r.size + '</div></div>';
+                    html += '<div class="ri-arrow">&#8250;</div>';
+                    html += '</div>';
+                });
+                listDiv.innerHTML = html;
+            } catch (e) {
+                listDiv.innerHTML = '<div class="empty-state" style="padding:20px">加载失败</div>';
+            }
+        }
+
+        async function loadReportContent(filename, el) {
+            // 高亮选中
+            document.querySelectorAll('.report-list-item').forEach(function(item) { item.classList.remove('active'); });
+            if (el) el.classList.add('active');
+
+            var container = document.getElementById('reportContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载报告中...</p></div>';
+            try {
+                var resp = await fetch('/api/evaluate/report?filename=' + encodeURIComponent(filename));
+                var data = await resp.json();
+                if (data.error) { container.innerHTML = '<div class="empty-state">' + data.error + '</div>'; return; }
+                container.innerHTML = '<div class="report-content">' + data.content + '</div>';
+            } catch (e) {
+                container.innerHTML = '<div class="empty-state">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        // 初始化：添加2个空白题目
+        addTestCase();
+        addTestCase();
+    </script>
+</body>
+</html>

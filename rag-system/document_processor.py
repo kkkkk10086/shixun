@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from markitdown import MarkItDown
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from config import CHUNK_SIZE, CHUNK_OVERLAP, OUTPUT_DIR
+from decorators import timer_and_log
 
 
 # 线程池
@@ -45,16 +46,59 @@ def _convert_with_markitdown(file_path: str) -> str:
 
 
 def split_text(markdown_text: str) -> list:
-    """将 Markdown 文本进行智能分块"""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", "。", "！", "？", ".", " "],
-        length_function=len
-    )
-    return splitter.split_text(markdown_text)
+    """
+    智能分块：针对不同内容类型使用不同策略
+
+    策略：
+    1. 表格内容：整表保留，不拆分（确保参数完整性）
+    2. 排障步骤：按 ## 故障 分割，每个故障作为一个块
+    3. 普通文本：按段落分割，保留上下文
+    """
+    chunks = []
+
+    # 1. 提取并保留完整表格（Markdown表格以 | 开头）
+    table_pattern = r'(\|.+\|[\n\r]+\|[-| :]+\|[\n\r]+(?:\|.+\|[\n\r]*)+)'
+    import re
+    tables = re.findall(table_pattern, markdown_text)
+    for table in tables:
+        # 表格作为一个完整的块保留
+        chunks.append(table.strip())
+        # 从原文中移除已处理的表格
+        markdown_text = markdown_text.replace(table, '', 1)
+
+    # 2. 按 ## 故障/问题 分割排障步骤
+    trouble_sections = re.split(r'(?=##\s*(?:故障|问题|排障|步骤)\d*)', markdown_text)
+    for section in trouble_sections:
+        section = section.strip()
+        if not section:
+            continue
+        # 如果排障步骤块太长（>3000字符），再用递归分割
+        if len(section) > 3000:
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=CHUNK_SIZE,
+                chunk_overlap=CHUNK_OVERLAP,
+                separators=["\n\n", "\n", "。", "！", "？"],
+                length_function=len
+            )
+            chunks.extend(splitter.split_text(section))
+        elif len(section) > 50:  # 过短的跳过
+            chunks.append(section)
+
+    # 3. 剩余普通文本用递归分割
+    remaining_text = markdown_text.strip()
+    if remaining_text and len(remaining_text) > 50:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            separators=["\n\n", "\n", "。", "！", "？", ".", " "],
+            length_function=len
+        )
+        chunks.extend(splitter.split_text(remaining_text))
+
+    return chunks
 
 
+@timer_and_log
 def _process_single_file(file_path: str) -> tuple:
     """处理单个文件，返回 (文件名, 分块列表)"""
     try:

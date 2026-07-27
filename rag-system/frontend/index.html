@@ -76,7 +76,10 @@
             <h1>RAG 智能检索系统</h1>
             <span>讯飞智能硬件产品助理 · 数据底座</span>
         </div>
-        <span>系统运行中</span>
+        <div style="display:flex;align-items:center;gap:16px">
+            <a href="/evaluate" style="color:white;text-decoration:none;font-size:13px;padding:6px 14px;border:1px solid rgba(255,255,255,0.5);border-radius:16px">RAGAS 评估</a>
+            <span>系统运行中</span>
+        </div>
     </nav>
 
     <div class="main">
@@ -110,6 +113,12 @@
                 </div>
                 <input type="file" id="fileInput" style="display:none" multiple accept=".pdf,.docx,.doc,.txt,.md">
                 <div class="upload-status" id="uploadStatus"></div>
+            </div>
+
+            <div class="card">
+                <h2>AI 测试</h2>
+                <button onclick="aiGenerateAndEval()" style="width:100%;padding:10px;background:linear-gradient(135deg,#1a73e8,#1565c0);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer" id="btnAiTest">AI 生成用例并评估</button>
+                <div id="aiTestStatus" style="margin-top:8px;font-size:12px;color:#888"></div>
             </div>
         </div>
 
@@ -171,18 +180,49 @@
                 chatContainer.scrollTop = chatContainer.scrollHeight;
 
                 try {
-                    var resp = await fetch('/api/chat', {
+                    var resp = await fetch('/api/chat_stream', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ query: query, session_id: sessionId })
                     });
-                    var data = await resp.json();
 
+                    var reader = resp.body.getReader();
+                    var decoder = new TextDecoder();
+                    var fullAnswer = '';
                     var typingEl = document.getElementById('typing');
-                    if (typingEl) typingEl.remove();
 
-                    chatContainer.innerHTML += '<div class="chat-msg assistant"><div class="chat-bubble assistant-bubble">' + data.answer.replace(/\n/g, '<br>') + '</div></div>';
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    while (true) {
+                        var result = await reader.read();
+                        if (result.done) break;
+
+                        var text = decoder.decode(result.value);
+                        var lines = text.split('\n');
+
+                        for (var i = 0; i < lines.length; i++) {
+                            if (lines[i].startsWith('data: ')) {
+                                try {
+                                    var data = JSON.parse(lines[i].slice(6));
+                                    if (data.type === 'status') {
+                                        if (typingEl) typingEl.querySelector('.chat-bubble').textContent = data.content;
+                                    } else if (data.type === 'chunk') {
+                                        fullAnswer += data.content;
+                                        if (typingEl) typingEl.remove();
+                                        if (!document.getElementById('streamAnswer')) {
+                                            chatContainer.innerHTML += '<div class="chat-msg assistant" id="streamAnswer"><div class="chat-bubble assistant-bubble"></div></div>';
+                                        }
+                                        document.getElementById('streamAnswer').querySelector('.chat-bubble').innerHTML = fullAnswer.replace(/\n/g, '<br>');
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    } else if (data.type === 'done') {
+                                        var streamEl = document.getElementById('streamAnswer');
+                                        if (streamEl) streamEl.removeAttribute('id');
+                                    } else if (data.type === 'error') {
+                                        if (typingEl) typingEl.remove();
+                                        chatContainer.innerHTML += '<div class="chat-msg assistant"><div class="chat-bubble assistant-bubble" style="color:red">' + data.content + '</div></div>';
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
                 } catch (e) {
                     var typingEl = document.getElementById('typing');
                     if (typingEl) typingEl.remove();
@@ -313,6 +353,47 @@
 
         loadStats();
         loadFileList();
+
+        // AI 测试用例按钮
+        async function aiGenerateAndEval() {
+            var btn = document.getElementById('btnAiTest');
+            var status = document.getElementById('aiTestStatus');
+            btn.disabled = true;
+            btn.textContent = 'AI 生成中...';
+            status.textContent = '正在根据知识库生成测试用例...';
+
+            try {
+                // 1. AI 生成用例
+                var resp = await fetch('/api/evaluate/auto-generate', { method: 'POST' });
+                var data = await resp.json();
+                if (data.detail) { status.textContent = '生成失败: ' + data.detail; btn.disabled = false; btn.textContent = 'AI 生成用例并评估'; return; }
+
+                var cases = data.test_cases || [];
+                status.textContent = '已生成 ' + cases.length + ' 个用例，开始评估...';
+                btn.textContent = '评估中...';
+
+                // 2. 自动执行批量评估
+                var resp2 = await fetch('/api/evaluate/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_cases: cases, top_k: 5 })
+                });
+                var result = await resp2.json();
+
+                if (result.average_metrics) {
+                    var avg = result.average_metrics;
+                    var score = (avg.overall_score * 100).toFixed(1);
+                    status.innerHTML = '评估完成！综合评分: <b>' + score + '%</b> | <a href="/evaluate" style="color:#1a73e8">查看详细报告</a>';
+                } else {
+                    status.textContent = '评估完成，但未返回指标';
+                }
+            } catch (e) {
+                status.textContent = '失败: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'AI 生成用例并评估';
+            }
+        }
     </script>
 </body>
 </html>
