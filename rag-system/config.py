@@ -14,7 +14,7 @@ MYSQL_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "Khy050126",
+    "password": "YOUR_MYSQL_PASSWORD_HERE",
     "database": "rag_system",
     "charset": "utf8mb4"
 }
