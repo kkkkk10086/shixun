@@ -6,6 +6,11 @@ RAG 智能检索系统 - 主入口
 import os
 import sys
 
+# ===== 离线模式：所有模型已缓存，禁止联网 =====
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 # 加载 .env 文件
 from dotenv import load_dotenv
 load_dotenv()

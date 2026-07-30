@@ -52,8 +52,8 @@ class RAGASEvaluator:
             print(f"[LLM调用失败] {e}")
             return ""
 
-    def _retrieve_documents(self, query: str, top_k: int = 5) -> List[str]:
-        """检索相关文档：直接复用主系统的 search_knowledge_base"""
+    def _retrieve_documents(self, query: str, top_k: int = 10) -> List[str]:
+        """检索相关文档：使用增强检索（三路融合 + Cross-Encoder 重排）"""
         if self.collection is None:
             return []
 
@@ -106,7 +106,32 @@ class RAGASEvaluator:
                 max_tokens=800,
                 temperature=0.3
             )
-            return response.choices[0].message.content.strip()
+            answer = response.choices[0].message.content.strip()
+
+            # 兜底：如果回答太短（< 30 字符），说明 LLM 放弃回答，强制重试
+            if len(answer) < 30 and len(contexts) > 0:
+                print(f"  [评估生成] 回答过短({len(answer)}字符)，可能是LLM放弃，强制重试...")
+                retry_prompt = f"""你是讯飞智能硬件产品助手。以下是你必须使用的知识库文档，你必须从中提取信息回答用户问题。
+
+禁止说"暂无"、"没有"、"无法回答"等放弃性语言。
+即使文档中没有直接答案，也必须列出文档中所有与问题相关的内容。
+
+知识库文档：
+{kb_result}
+
+用户问题：{query}
+
+请列出文档中所有与问题相关的内容（必须逐条列出，不少于100字）："""
+                response2 = assistant.llm.chat.completions.create(
+                    model=DEEPSEEK_MODEL,
+                    messages=[{"role": "user", "content": retry_prompt}],
+                    max_tokens=800,
+                    temperature=0.3
+                )
+                answer = response2.choices[0].message.content.strip()
+                print(f"  [评估生成] 重试后回答: {len(answer)} 字符")
+
+            return answer
         except Exception as e:
             print(f"[评估生成] 生成失败: {e}")
             return ""
@@ -177,33 +202,93 @@ class RAGASEvaluator:
         except (json.JSONDecodeError, ValueError):
             return 0.5  # 默认值
 
-    def evaluate_context_recall(self, query: str, answer: str, ground_truth: str) -> float:
+    def evaluate_context_recall(self, query: str, contexts: List[str], ground_truth: str) -> float:
         """
-        评估上下文召回（Context Recall）
-        通过检查生成的回答是否包含标准答案的关键信息来衡量
+        评估上下文召回（Context Recall）—— 真正的文档级召回
+        
+        衡量标准：ground_truth 中的关键信息，有多少能在检索到的文档中找到。
+        这才是真正的"检索召回率"，而不是之前那种"回答 vs 标准答案"的假指标。
         """
-        if not answer or not ground_truth:
-            return 0.5
+        if not contexts or not ground_truth:
+            return 0.0
 
+        # 用 LLM 将 ground_truth 拆解为独立的事实陈述
+        prompt = f"""将以下标准答案拆解为独立的事实陈述（每条一行，用数字编号）。
+
+标准答案：{ground_truth}
+
+要求：
+- 每条事实陈述必须独立、可验证
+- 只输出事实列表，不要其他内容
+
+输出格式：
+1. 事实1
+2. 事实2
+..."""
+
+        facts_text = self._get_llm_response(prompt, max_tokens=300)
+        if not facts_text:
+            # 降级：直接用简单关键词匹配
+            return self._simple_keyword_recall(ground_truth, contexts)
+
+        # 解析事实列表
         import re
-        # 提取标准答案中的关键数字
-        gt_numbers = set(re.findall(r'\d+\.?\d*', ground_truth))
-        ans_numbers = set(re.findall(r'\d+\.?\d*', answer))
+        facts = []
+        for line in facts_text.split("\n"):
+            line = line.strip()
+            if re.match(r'^\d+[\.\)、]', line):
+                fact = re.sub(r'^\d+[\.\)、]\s*', '', line).strip()
+                if len(fact) > 3:
+                    facts.append(fact)
 
+        if not facts:
+            facts = [ground_truth]
+
+        # 对每个事实，检查是否在检索到的文档中出现
+        contexts_text = "\n\n".join([f"[文档{i+1}] {doc[:500]}" for i, doc in enumerate(contexts)])
+
+        check_prompt = f"""逐一检查以下事实陈述，判断它们是否能在检索到的文档中找到依据。
+
+事实陈述：
+{chr(10).join(f"{i+1}. {f}" for i, f in enumerate(facts))}
+
+检索到的文档：
+{contexts_text}
+
+对每个事实，判断是否能在文档中找到（1=能找到，0=找不到）。
+输出JSON格式，只输出JSON：
+{{"results": [{{"fact_index": 1, "found": 1或0, "evidence": "找到的依据（如有）"}}, ...]}}"""
+
+        result = self._get_llm_response(check_prompt, max_tokens=500)
+        try:
+            if result.startswith("```"):
+                result = result.split("\n", 1)[1].rsplit("```", 1)[0]
+            data = json.loads(result)
+            found_count = sum(1 for r in data.get("results", []) if r.get("found", 0) == 1)
+            recall = found_count / len(facts) if facts else 0.5
+            print(f"  [召回详情] {found_count}/{len(facts)} 个事实在检索文档中找到")
+            return round(recall, 3)
+        except (json.JSONDecodeError, KeyError):
+            return self._simple_keyword_recall(ground_truth, contexts)
+
+    def _simple_keyword_recall(self, ground_truth: str, contexts: List[str]) -> float:
+        """降级方案：简单关键词匹配"""
+        import re
+        gt_numbers = set(re.findall(r'\d+\.?\d*', ground_truth))
+        all_context = " ".join(contexts)
+        ctx_numbers = set(re.findall(r'\d+\.?\d*', all_context))
         if gt_numbers:
-            number_recall = len(gt_numbers & ans_numbers) / len(gt_numbers)
+            number_recall = len(gt_numbers & ctx_numbers) / len(gt_numbers)
         else:
             number_recall = 1.0
 
-        # 提取标准答案中的关键短语
         gt_keywords = [w for w in ground_truth.replace("，", " ").replace("、", " ").split() if len(w) >= 2]
         if gt_keywords:
-            keyword_recall = sum(1 for kw in gt_keywords if kw in answer) / len(gt_keywords)
+            keyword_recall = sum(1 for kw in gt_keywords if kw in all_context) / len(gt_keywords)
         else:
             keyword_recall = 1.0
 
-        recall = (number_recall * 0.6 + keyword_recall * 0.4)
-        return round(recall, 3)
+        return round(number_recall * 0.6 + keyword_recall * 0.4, 3)
 
     def evaluate_faithfulness(self, query: str, answer: str, contexts: List[str]) -> float:
         """
@@ -317,7 +402,7 @@ class RAGASEvaluator:
         except (json.JSONDecodeError, ValueError):
             return 0.5
 
-    def evaluate_single(self, query: str, ground_truth: str = None, top_k: int = 5) -> Dict:
+    def evaluate_single(self, query: str, ground_truth: str = None, top_k: int = 10) -> Dict:
         """
         评估单个查询
 
@@ -345,7 +430,7 @@ class RAGASEvaluator:
         context_precision = self.evaluate_context_precision(query, contexts, ground_truth)
         print(f"[4/6] 上下文精度: {context_precision:.3f}")
 
-        context_recall = self.evaluate_context_recall(query, answer, ground_truth) if ground_truth else 0.5
+        context_recall = self.evaluate_context_recall(query, contexts, ground_truth) if ground_truth else 0.5
         print(f"[5/6] 上下文召回: {context_recall:.3f}")
 
         faithfulness = self.evaluate_faithfulness(query, answer, contexts)
@@ -386,7 +471,7 @@ class RAGASEvaluator:
 
         return result
 
-    def evaluate_batch(self, test_cases: List[Dict], top_k: int = 5) -> Dict:
+    def evaluate_batch(self, test_cases: List[Dict], top_k: int = 10) -> Dict:
         """
         批量评估多个测试用例
 

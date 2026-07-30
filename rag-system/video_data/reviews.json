@@ -1,0 +1,48 @@
+[
+  {
+    "review_id": "REVIEW-07D55447",
+    "target_type": "video",
+    "target_id": "VIDEO-TEST-001",
+    "target_title": "??????",
+    "product_line": "???",
+    "product_model": "X8 Pro",
+    "reviews": [
+      {
+        "type": "product",
+        "name": "产品审核",
+        "status": "pending",
+        "reviewer": "",
+        "comment": "",
+        "date": ""
+      },
+      {
+        "type": "technical",
+        "name": "技术审核",
+        "status": "pending",
+        "reviewer": "",
+        "comment": "",
+        "date": ""
+      },
+      {
+        "type": "brand",
+        "name": "品牌审核",
+        "status": "pending",
+        "reviewer": "",
+        "comment": "",
+        "date": ""
+      },
+      {
+        "type": "version",
+        "name": "版本审核",
+        "status": "pending",
+        "reviewer": "",
+        "comment": "",
+        "date": ""
+      }
+    ],
+    "overall_status": "in_review",
+    "published_at": "",
+    "created_at": "2026-07-29 19:22:42",
+    "updated_at": "2026-07-29 19:22:42"
+  }
+]

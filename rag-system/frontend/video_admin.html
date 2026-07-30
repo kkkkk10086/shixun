@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频知识库管理 - RAG 智能检索系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+        .navbar { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 20px; }
+        .navbar .nav-links { display: flex; gap: 12px; }
+        .navbar a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 13px; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 16px; transition: all 0.2s; }
+        .navbar a:hover { background: rgba(255,255,255,0.15); color: white; }
+        .navbar a.active { background: rgba(255,255,255,0.2); color: white; border-color: white; }
+        .main { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); margin-bottom: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #1a73e8; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .card-header h2 { margin-bottom: 0; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-box { background: #f8f9ff; border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #1a73e8; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+        .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+        .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1.5px solid #e0e5ec; border-radius: 8px; font-size: 13px; outline: none; }
+        .filter-bar select:focus, .filter-bar input:focus { border-color: #1a73e8; }
+        .filter-bar input { flex: 1; min-width: 200px; }
+        .btn { padding: 8px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-outline { background: white; border: 1.5px solid #e0e5ec; color: #555; }
+        .btn-outline:hover { border-color: #1a73e8; color: #1a73e8; }
+        .video-table { width: 100%; border-collapse: collapse; }
+        .video-table th { text-align: left; padding: 10px 12px; font-size: 12px; color: #888; border-bottom: 2px solid #f0f0f0; text-transform: uppercase; }
+        .video-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+        .video-table tr:hover { background: #f8f9ff; }
+        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .status-draft { background: #fff3e0; color: #e65100; }
+        .status-approved { background: #e8f5e9; color: #2e7d32; }
+        .status-published { background: #e3f2fd; color: #1565c0; }
+        .status-archived { background: #f5f5f5; color: #757575; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f0f0f0; color: #555; margin: 1px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e0e5ec; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 28px; width: 90%; max-width: 640px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h3 { font-size: 18px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e5ec; border-radius: 8px; font-size: 13px; outline: none; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1a73e8; }
+        .form-group textarea { min-height: 60px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+        .btn-cancel { padding: 8px 18px; border: 1.5px solid #e0e5ec; border-radius: 8px; background: white; font-size: 13px; cursor: pointer; }
+        .btn-cancel:hover { background: #f5f5f5; }
+
+        /* Chapter list in modal */
+        .chapter-list { margin: 10px 0; }
+        .chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8f9ff; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+        .chapter-item .time { color: #888; font-size: 12px; white-space: nowrap; }
+        .chapter-item .title { flex: 1; }
+        .chapter-item .del-btn { color: #d32f2f; cursor: pointer; font-size: 16px; line-height: 1; }
+        .chapter-item .del-btn:hover { color: #b71c1c; }
+
+        /* Toast */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 2000; display: none; animation: fadeIn 0.3s; }
+        .toast.show { display: block; }
+        .toast.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .toast.error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Detail view */
+        .detail-section { margin-bottom: 16px; }
+        .detail-section h4 { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+        .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; }
+        .detail-grid .label { color: #888; }
+        .detail-grid .value { color: #333; }
+        .questions-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .questions-list .q-tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div>
+            <h1>视频知识库管理</h1>
+            <span>讯飞智能硬件 · 视频资源管理</span>
+        </div>
+        <div class="nav-links">
+            <a href="/">返回首页</a>
+            <a href="/admin">综合管理</a>
+            <a href="/evaluate">RAGAS 评估</a>
+        </div>
+    </nav>
+
+    <div class="main">
+        <!-- 统计卡片 -->
+        <div class="card">
+            <h2>视频库概览</h2>
+            <div class="stats-row" id="statsRow">
+                <div class="stat-box"><div class="stat-value" id="statTotal">-</div><div class="stat-label">视频总数</div></div>
+                <div class="stat-box" id="statProductWrap" style="display:none"><div class="stat-value" id="statProductCount">-</div><div class="stat-label">产品线</div></div>
+            </div>
+        </div>
+
+        <!-- 操作栏 -->
+        <div class="card">
+            <div class="card-header">
+                <h2>视频列表</h2>
+                <button class="btn btn-primary" onclick="openAddModal()">+ 添加视频</button>
+            </div>
+
+            <div class="filter-bar">
+                <select id="filterProduct" onchange="loadVideos()">
+                    <option value="">全部产品线</option>
+                    <option value="学习机">学习机</option>
+                    <option value="翻译机">翻译机</option>
+                    <option value="词典笔">词典笔</option>
+                    <option value="办公本">办公本</option>
+                    <option value="录音笔">录音笔</option>
+                    <option value="录音卡">录音卡</option>
+                    <option value="英语宝">英语宝</option>
+                    <option value="键盘">键盘</option>
+                    <option value="鼠标">鼠标</option>
+                </select>
+                <select id="filterStatus" onchange="loadVideos()">
+                    <option value="">全部状态</option>
+                    <option value="draft">草稿</option>
+                    <option value="approved">已审核</option>
+                    <option value="published">已发布</option>
+                    <option value="archived">已归档</option>
+                </select>
+                <input type="text" id="searchInput" placeholder="搜索视频标题、适用问题..." onkeydown="if(event.key==='Enter')searchVideos()">
+                <button class="btn btn-primary btn-sm" onclick="searchVideos()">搜索</button>
+                <button class="btn btn-outline btn-sm" onclick="clearSearch()">清除</button>
+            </div>
+
+            <div id="videoList">
+                <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑视频 Modal -->
+    <div class="modal-overlay" id="videoModal">
+        <div class="modal">
+            <h3 id="modalTitle">添加视频</h3>
+            <input type="hidden" id="editVideoId">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>产品线</label>
+                    <select id="formProduct">
+                        <option value="">请选择</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="录音卡">录音卡</option>
+                        <option value="英语宝">英语宝</option>
+                        <option value="键盘">键盘</option>
+                        <option value="鼠标">鼠标</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>产品型号</label>
+                    <input type="text" id="formModel" placeholder="如: X8 Pro">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>固件版本</label>
+                    <input type="text" id="formFirmware" placeholder="如: V2.0">
+                </div>
+                <div class="form-group">
+                    <label>时长（秒）</label>
+                    <input type="number" id="formDuration" placeholder="0">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>视频标题</label>
+                <input type="text" id="formTitle" placeholder="输入视频标题">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>视频 URL</label>
+                    <input type="text" id="formVideoUrl" placeholder="视频文件路径或URL">
+                </div>
+                <div class="form-group">
+                    <label>缩略图 URL</label>
+                    <input type="text" id="formThumbnailUrl" placeholder="缩略图路径或URL">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>状态</label>
+                <select id="formStatus">
+                    <option value="draft">草稿</option>
+                    <option value="approved">已审核</option>
+                    <option value="published">已发布</option>
+                    <option value="archived">已归档</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>适用问题（每行一个）</label>
+                <textarea id="formQuestions" placeholder="每行输入一个常见问题，如：&#10;怎么开机&#10;如何连接Wi-Fi"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>章节管理</label>
+                <div id="chapterEditorList"></div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                    <input type="text" id="chapterTitle" placeholder="章节标题" style="flex:1;padding:6px 10px;border:1.5px solid #e0e5ec;border-radius:6px;font-size:12px">
+                    <input type="number" id="chapterStart" placeholder="开始(秒)" style="width:80px;padding:6px 10px;border:1.5px solid #e0e5ec;border-radius:6px;font-size:12px">
+                    <input type="number" id="chapterEnd" placeholder="结束(秒)" style="width:80px;padding:6px 10px;border:1.5px solid #e0e5ec;border-radius:6px;font-size:12px">
+                    <button class="btn btn-success btn-sm" onclick="addChapterField()">添加</button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('videoModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveVideo()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情 Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <h3>视频详情</h3>
+            <div id="detailContent"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('detailModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ========== 全局变量 ==========
+        var tempChapters = [];
+
+        // ========== 初始化 ==========
+        loadVideos();
+        loadStats();
+
+        // ========== 数据加载 ==========
+
+        async function loadStats() {
+            try {
+                var resp = await fetch('/api/videos/stats');
+                var data = await resp.json();
+                document.getElementById('statTotal').textContent = data.total || 0;
+
+                var productKeys = Object.keys(data.by_product || {});
+                if (productKeys.length > 0) {
+                    document.getElementById('statProductWrap').style.display = 'block';
+                    document.getElementById('statProductCount').textContent = productKeys.length;
+                }
+
+                // 在统计区添加产品分布
+                var statsRow = document.getElementById('statsRow');
+                // 清除旧的动态统计
+                statsRow.querySelectorAll('.stat-box-dynamic').forEach(function(el) { el.remove(); });
+                for (var p in data.by_product) {
+                    var div = document.createElement('div');
+                    div.className = 'stat-box stat-box-dynamic';
+                    div.innerHTML = '<div class="stat-value" style="font-size:18px">' + data.by_product[p] + '</div><div class="stat-label">' + p + '</div>';
+                    statsRow.appendChild(div);
+                }
+            } catch (e) {
+                console.error('加载统计失败:', e);
+            }
+        }
+
+        async function loadVideos() {
+            var listEl = document.getElementById('videoList');
+            listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载中...</p></div>';
+
+            var productLine = document.getElementById('filterProduct').value;
+            var status = document.getElementById('filterStatus').value;
+
+            var params = new URLSearchParams();
+            if (productLine) params.set('product_line', productLine);
+            if (status) params.set('status', status);
+
+            try {
+                var resp = await fetch('/api/videos?' + params.toString());
+                var data = await resp.json();
+                renderVideoList(data.videos || []);
+            } catch (e) {
+                listEl.innerHTML = '<div class="empty-state">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function renderVideoList(videos) {
+            var listEl = document.getElementById('videoList');
+
+            if (!videos || videos.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">暂无视频数据，点击右上角"添加视频"开始</div>';
+                return;
+            }
+
+            var html = '<table class="video-table">' +
+                '<thead><tr><th>标题</th><th>产品线</th><th>型号</th><th>时长</th><th>章节</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>';
+
+            videos.forEach(function(v) {
+                var statusClass = 'status-' + v.review_status;
+                var statusMap = { draft: '草稿', approved: '已审核', published: '已发布', archived: '已归档' };
+                var statusText = statusMap[v.review_status] || v.review_status;
+                var durationStr = formatDuration(v.duration);
+                var chapterCount = (v.chapters || []).length;
+
+                html += '<tr>' +
+                    '<td><strong>' + escapeHtml(v.title || '未命名') + '</strong></td>' +
+                    '<td>' + escapeHtml(v.product_line || '-') + '</td>' +
+                    '<td>' + escapeHtml(v.product_model || '-') + '</td>' +
+                    '<td>' + durationStr + '</td>' +
+                    '<td>' + chapterCount + ' 节</td>' +
+                    '<td><span class="status-badge ' + statusClass + '">' + statusText + '</span></td>' +
+                    '<td style="font-size:11px;color:#888">' + (v.updated_at || '-') + '</td>' +
+                    '<td>' +
+                        '<button class="btn btn-sm btn-outline" onclick="viewDetail(\'' + v.video_id + '\')" style="margin-right:4px">详情</button>' +
+                        '<button class="btn btn-sm btn-outline" onclick="openEditModal(\'' + v.video_id + '\')" style="margin-right:4px">编辑</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="deleteVideo(\'' + v.video_id + '\')">删除</button>' +
+                    '</td></tr>';
+            });
+
+            html += '</tbody></table>';
+            listEl.innerHTML = html;
+        }
+
+        async function searchVideos() {
+            var query = document.getElementById('searchInput').value.trim();
+            if (!query) { loadVideos(); return; }
+
+            var listEl = document.getElementById('videoList');
+            listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>搜索中...</p></div>';
+
+            try {
+                var resp = await fetch('/api/videos/search?query=' + encodeURIComponent(query));
+                var data = await resp.json();
+                renderVideoList(data.videos || []);
+            } catch (e) {
+                listEl.innerHTML = '<div class="empty-state">搜索失败: ' + e.message + '</div>';
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            loadVideos();
+        }
+
+        // ========== 详情查看 ==========
+
+        async function viewDetail(videoId) {
+            try {
+                var resp = await fetch('/api/videos/' + videoId);
+                var v = await resp.json();
+
+                var statusMap = { draft: '草稿', approved: '已审核', published: '已发布', archived: '已归档' };
+
+                var html = '<div class="detail-section">' +
+                    '<div class="detail-grid">' +
+                        '<span class="label">视频ID</span><span class="value">' + escapeHtml(v.video_id) + '</span>' +
+                        '<span class="label">标题</span><span class="value"><strong>' + escapeHtml(v.title) + '</strong></span>' +
+                        '<span class="label">产品线</span><span class="value">' + escapeHtml(v.product_line || '-') + '</span>' +
+                        '<span class="label">型号</span><span class="value">' + escapeHtml(v.product_model || '-') + '</span>' +
+                        '<span class="label">固件版本</span><span class="value">' + escapeHtml(v.firmware_version || '-') + '</span>' +
+                        '<span class="label">时长</span><span class="value">' + formatDuration(v.duration) + '</span>' +
+                        '<span class="label">状态</span><span class="value"><span class="status-badge status-' + v.review_status + '">' + (statusMap[v.review_status] || v.review_status) + '</span></span>' +
+                        '<span class="label">创建时间</span><span class="value">' + (v.created_at || '-') + '</span>' +
+                        '<span class="label">更新时间</span><span class="value">' + (v.updated_at || '-') + '</span>';
+
+                if (v.video_url) {
+                    html += '<span class="label">视频URL</span><span class="value" style="font-size:12px;word-break:break-all">' + escapeHtml(v.video_url) + '</span>';
+                }
+                if (v.thumbnail_url) {
+                    html += '<span class="label">缩略图</span><span class="value" style="font-size:12px;word-break:break-all">' + escapeHtml(v.thumbnail_url) + '</span>';
+                }
+
+                html += '</div></div>';
+
+                // 适用问题
+                if (v.applicable_questions && v.applicable_questions.length > 0) {
+                    html += '<div class="detail-section"><h4>适用问题</h4><div class="questions-list">';
+                    v.applicable_questions.forEach(function(q) {
+                        html += '<span class="q-tag">' + escapeHtml(q) + '</span>';
+                    });
+                    html += '</div></div>';
+                }
+
+                // 章节
+                if (v.chapters && v.chapters.length > 0) {
+                    html += '<div class="detail-section"><h4>章节列表</h4>';
+                    v.chapters.forEach(function(c, i) {
+                        html += '<div class="chapter-item"><span class="time">' + formatDuration(c.start_time) + ' - ' + formatDuration(c.end_time) + '</span><span class="title">' + escapeHtml(c.title) + '</span></div>';
+                    });
+                    html += '</div>';
+                }
+
+                document.getElementById('detailContent').innerHTML = html;
+                document.getElementById('detailModal').classList.add('show');
+            } catch (e) {
+                showToast('加载详情失败: ' + e.message, 'error');
+            }
+        }
+
+        // ========== 添加/编辑视频 ==========
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = '添加视频';
+            document.getElementById('editVideoId').value = '';
+            clearForm();
+            tempChapters = [];
+            renderChapterEditor();
+            document.getElementById('videoModal').classList.add('show');
+        }
+
+        async function openEditModal(videoId) {
+            try {
+                var resp = await fetch('/api/videos/' + videoId);
+                var v = await resp.json();
+
+                document.getElementById('modalTitle').textContent = '编辑视频';
+                document.getElementById('editVideoId').value = videoId;
+
+                document.getElementById('formProduct').value = v.product_line || '';
+                document.getElementById('formModel').value = v.product_model || '';
+                document.getElementById('formFirmware').value = v.firmware_version || '';
+                document.getElementById('formDuration').value = v.duration || 0;
+                document.getElementById('formTitle').value = v.title || '';
+                document.getElementById('formVideoUrl').value = v.video_url || '';
+                document.getElementById('formThumbnailUrl').value = v.thumbnail_url || '';
+                document.getElementById('formStatus').value = v.review_status || 'draft';
+                document.getElementById('formQuestions').value = (v.applicable_questions || []).join('\n');
+
+                tempChapters = (v.chapters || []).map(function(c) {
+                    return { start_time: c.start_time, end_time: c.end_time, title: c.title };
+                });
+                renderChapterEditor();
+
+                document.getElementById('videoModal').classList.add('show');
+            } catch (e) {
+                showToast('加载视频信息失败: ' + e.message, 'error');
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('formProduct').value = '';
+            document.getElementById('formModel').value = '';
+            document.getElementById('formFirmware').value = '';
+            document.getElementById('formDuration').value = '';
+            document.getElementById('formTitle').value = '';
+            document.getElementById('formVideoUrl').value = '';
+            document.getElementById('formThumbnailUrl').value = '';
+            document.getElementById('formStatus').value = 'draft';
+            document.getElementById('formQuestions').value = '';
+        }
+
+        function addChapterField() {
+            var title = document.getElementById('chapterTitle').value.trim();
+            var start = parseInt(document.getElementById('chapterStart').value) || 0;
+            var end = parseInt(document.getElementById('chapterEnd').value) || 0;
+
+            if (!title) { showToast('请输入章节标题', 'error'); return; }
+            if (end <= start) { showToast('结束时间必须大于开始时间', 'error'); return; }
+
+            tempChapters.push({ start_time: start, end_time: end, title: title });
+            renderChapterEditor();
+
+            document.getElementById('chapterTitle').value = '';
+            document.getElementById('chapterStart').value = '';
+            document.getElementById('chapterEnd').value = '';
+        }
+
+        function removeChapterField(index) {
+            tempChapters.splice(index, 1);
+            renderChapterEditor();
+        }
+
+        function renderChapterEditor() {
+            var el = document.getElementById('chapterEditorList');
+            if (tempChapters.length === 0) {
+                el.innerHTML = '<div style="color:#bbb;font-size:12px;padding:8px 0">暂无章节</div>';
+                return;
+            }
+            var html = '';
+            tempChapters.forEach(function(c, i) {
+                html += '<div class="chapter-item">' +
+                    '<span class="time">' + formatDuration(c.start_time) + ' - ' + formatDuration(c.end_time) + '</span>' +
+                    '<span class="title">' + escapeHtml(c.title) + '</span>' +
+                    '<span class="del-btn" onclick="removeChapterField(' + i + ')">&times;</span>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        }
+
+        async function saveVideo() {
+            var videoId = document.getElementById('editVideoId').value;
+            var productLine = document.getElementById('formProduct').value;
+            var productModel = document.getElementById('formModel').value.trim();
+            var firmwareVersion = document.getElementById('formFirmware').value.trim();
+            var duration = parseInt(document.getElementById('formDuration').value) || 0;
+            var title = document.getElementById('formTitle').value.trim();
+            var videoUrl = document.getElementById('formVideoUrl').value.trim();
+            var thumbnailUrl = document.getElementById('formThumbnailUrl').value.trim();
+            var status = document.getElementById('formStatus').value;
+            var questions = document.getElementById('formQuestions').value.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+
+            if (!productLine) { showToast('请选择产品线', 'error'); return; }
+            if (!title) { showToast('请输入视频标题', 'error'); return; }
+
+            var body = {
+                product_line: productLine,
+                product_model: productModel,
+                firmware_version: firmwareVersion,
+                title: title,
+                duration: duration,
+                video_url: videoUrl,
+                thumbnail_url: thumbnailUrl,
+                review_status: status,
+                applicable_questions: questions,
+                chapters: tempChapters
+            };
+
+            try {
+                var resp;
+                if (videoId) {
+                    // 更新
+                    resp = await fetch('/api/videos/' + videoId, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                } else {
+                    // 新建
+                    resp = await fetch('/api/videos', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                }
+
+                if (!resp.ok) {
+                    var err = await resp.json();
+                    showToast('保存失败: ' + (err.detail || '未知错误'), 'error');
+                    return;
+                }
+
+                showToast(videoId ? '视频已更新' : '视频已创建', 'success');
+                closeModal('videoModal');
+                loadVideos();
+                loadStats();
+            } catch (e) {
+                showToast('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        // ========== 删除视频 ==========
+
+        async function deleteVideo(videoId) {
+            if (!confirm('确定要删除此视频吗？此操作不可撤销。')) return;
+
+            try {
+                var resp = await fetch('/api/videos/' + videoId, { method: 'DELETE' });
+                if (!resp.ok) {
+                    var err = await resp.json();
+                    showToast('删除失败: ' + (err.detail || '未知错误'), 'error');
+                    return;
+                }
+                showToast('视频已删除', 'success');
+                loadVideos();
+                loadStats();
+            } catch (e) {
+                showToast('删除失败: ' + e.message, 'error');
+            }
+        }
+
+        // ========== 工具函数 ==========
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        function showToast(msg, type) {
+            var toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show ' + (type || 'success');
+            setTimeout(function() { toast.classList.remove('show'); }, 3000);
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds && seconds !== 0) return '-';
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            if (m > 0) return m + '分' + (s > 0 ? s + '秒' : '');
+            return s + '秒';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal-overlay').forEach(function(el) {
+            el.addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('show');
+            });
+        });
+    </script>
+</body>
+</html>

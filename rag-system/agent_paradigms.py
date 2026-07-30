@@ -17,7 +17,7 @@ def get_llm():
 # 1. ReAct 范式（推理 + 行动）
 # ============================================================
 
-def react_agent(query: str, tools: dict) -> str:
+def react_agent(query: str, tools: dict, product_context: str = "") -> str:
     """
     ReAct 范式：推理 → 行动 → 观察 → 推理 → ...
     使用知识库文档，由 DeepSeek 分析回答
@@ -26,7 +26,9 @@ def react_agent(query: str, tools: dict) -> str:
 
     tool_desc = "\n".join([f"- {name}: {func.__doc__ or '无描述'}" for name, func in tools.items()])
 
-    prompt = f"""你是一个智能助手，使用 ReAct 模式回答问题。
+    product_hint = f"\n当前产品范围：{product_context}" if product_context else ""
+
+    prompt = f"""你是一个智能助手，使用 ReAct 模式回答问题。{product_hint}
 
 可用工具：
 {tool_desc}
@@ -106,7 +108,7 @@ def react_agent(query: str, tools: dict) -> str:
 # 2. Plan-and-Solve 范式（先规划，再执行）
 # ============================================================
 
-def plan_and_solve_agent(query: str, tools: dict = None) -> str:
+def plan_and_solve_agent(query: str, tools: dict = None, product_context: str = "") -> str:
     """
     Plan-and-Solve 范式：
     搜索知识库 → 发给 DeepSeek 分析 → 输出回答
@@ -117,7 +119,7 @@ def plan_and_solve_agent(query: str, tools: dict = None) -> str:
     all_docs_text = ""
     if tools and "search_knowledge" in tools:
         all_docs_text = tools["search_knowledge"](query)
-        print(f"\n[Plan-and-Solve] 获取到 {len(all_docs_text)} 字符文档")
+        print(f"\n[Plan-and-Solve] 获取到 {len(all_docs_text)} 字符文档 (产品: {product_context or '全部'})")
 
     # 2. 发给 DeepSeek 分析
     if tools and "analyze_with_llm" in tools:
@@ -154,7 +156,7 @@ def plan_and_solve_agent(query: str, tools: dict = None) -> str:
 # 3. Reflection 范式（生成 → 反思 → 改进）
 # ============================================================
 
-def reflection_agent(query: str, tools: dict = None) -> str:
+def reflection_agent(query: str, tools: dict = None, product_context: str = "") -> str:
     """
     Reflection 范式：
     搜索知识库 → DeepSeek 分析 → 反思 → 改进
@@ -165,7 +167,7 @@ def reflection_agent(query: str, tools: dict = None) -> str:
     all_docs_text = ""
     if tools and "search_knowledge" in tools:
         all_docs_text = tools["search_knowledge"](query)
-        print(f"\n[Reflection] 获取到 {len(all_docs_text)} 字符文档")
+        print(f"\n[Reflection] 获取到 {len(all_docs_text)} 字符文档 (产品: {product_context or '全部'})")
 
     # 2. 发给 DeepSeek 分析
     if tools and "analyze_with_llm" in tools:
@@ -267,7 +269,7 @@ def reflection_agent(query: str, tools: dict = None) -> str:
 # 统一 Agent 接口
 # ============================================================
 
-def run_agent(query: str, mode: str = "react", tools: dict = None) -> str:
+def run_agent(query: str, mode: str = "react", tools: dict = None, product_context: str = "") -> str:
     """
     统一 Agent 接口
     mode: react / plan_and_solve / reflection
@@ -276,11 +278,11 @@ def run_agent(query: str, mode: str = "react", tools: dict = None) -> str:
         tools = {}
 
     if mode == "react":
-        return react_agent(query, tools)
+        return react_agent(query, tools, product_context)
     elif mode == "plan_and_solve":
-        return plan_and_solve_agent(query, tools)
+        return plan_and_solve_agent(query, tools, product_context)
     elif mode == "reflection":
-        return reflection_agent(query, tools)
+        return reflection_agent(query, tools, product_context)
     else:
         return f"未知模式: {mode}，支持: react, plan_and_solve, reflection"
 

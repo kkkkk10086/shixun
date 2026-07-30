@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>综合管理 - RAG 智能检索系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+        .navbar { background: linear-gradient(135deg, #1a73e8, #0d47a1); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+        .navbar h1 { font-size: 20px; }
+        .navbar span { font-size: 13px; opacity: 0.8; }
+        .navbar .nav-links { display: flex; gap: 12px; }
+        .navbar a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 13px; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 16px; transition: all 0.2s; }
+        .navbar a:hover { background: rgba(255,255,255,0.15); color: white; }
+        .navbar a.active { background: rgba(255,255,255,0.2); color: white; border-color: white; }
+        .main { max-width: 1400px; margin: 24px auto; padding: 0 24px; }
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); margin-bottom: 20px; }
+        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #1a73e8; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .card-header h2 { margin-bottom: 0; }
+
+        /* Tabs */
+        .tab-bar { display: flex; gap: 4px; background: white; border-radius: 12px; padding: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { padding: 10px 20px; border: none; border-radius: 8px; background: transparent; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; transition: all 0.2s; }
+        .tab-btn:hover { background: #f0f4ff; color: #1a73e8; }
+        .tab-btn.active { background: #1a73e8; color: white; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-box { background: #f8f9ff; border-radius: 10px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #1a73e8; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+
+        .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+        .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1.5px solid #e0e5ec; border-radius: 8px; font-size: 13px; outline: none; }
+        .filter-bar select:focus, .filter-bar input:focus { border-color: #1a73e8; }
+        .filter-bar input { flex: 1; min-width: 200px; }
+
+        .btn { padding: 8px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-outline { background: white; border: 1.5px solid #e0e5ec; color: #555; }
+        .btn-outline:hover { border-color: #1a73e8; color: #1a73e8; }
+        .btn-warning { background: #e65100; color: white; }
+        .btn-warning:hover { background: #bf360c; }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 10px 12px; font-size: 12px; color: #888; border-bottom: 2px solid #f0f0f0; text-transform: uppercase; }
+        .data-table td { padding: 12px; font-size: 13px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+        .data-table tr:hover { background: #f8f9ff; }
+
+        .status-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .status-pending { background: #fff3e0; color: #e65100; }
+        .status-planned { background: #e3f2fd; color: #1565c0; }
+        .status-in_production { background: #f3e5f5; color: #7b1fa2; }
+        .status-completed { background: #e8f5e9; color: #2e7d32; }
+        .status-archived { background: #f5f5f5; color: #757575; }
+        .status-draft { background: #fff3e0; color: #e65100; }
+        .status-approved { background: #e8f5e9; color: #2e7d32; }
+        .status-published { background: #e3f2fd; color: #1565c0; }
+        .status-rejected { background: #ffebee; color: #c62828; }
+        .status-in_review { background: #fff8e1; color: #f57f17; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e0e5ec; border-top-color: #1a73e8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 16px; padding: 28px; width: 90%; max-width: 640px; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h3 { font-size: 18px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e5ec; border-radius: 8px; font-size: 13px; outline: none; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1a73e8; }
+        .form-group textarea { min-height: 60px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+        .btn-cancel { padding: 8px 18px; border: 1.5px solid #e0e5ec; border-radius: 8px; background: white; font-size: 13px; cursor: pointer; }
+        .btn-cancel:hover { background: #f5f5f5; }
+
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 2000; display: none; animation: fadeIn 0.3s; }
+        .toast.show { display: block; }
+        .toast.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .toast.error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; }
+        .detail-grid .label { color: #888; }
+        .detail-grid .value { color: #333; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #f0f0f0; color: #555; margin: 1px; }
+
+        .sop-preview { background: #f8f9ff; border-radius: 8px; padding: 16px; margin: 10px 0; font-size: 13px; }
+        .sop-step { padding: 8px 12px; background: white; border-radius: 6px; margin: 4px 0; border-left: 3px solid #1a73e8; }
+        .classify-result { padding: 12px; background: #f0f4ff; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div>
+            <h1>综合管理</h1>
+            <span>讯飞智能硬件 · 后台管理</span>
+        </div>
+        <div class="nav-links">
+            <a href="/">返回首页</a>
+            <a href="/video_admin">视频管理</a>
+            <a href="/evaluate">RAGAS 评估</a>
+        </div>
+    </nav>
+
+    <div class="main">
+        <!-- Tab 导航 -->
+        <div class="tab-bar" id="tabBar">
+            <button class="tab-btn active" onclick="switchTab('topics')">选题库</button>
+            <button class="tab-btn" onclick="switchTab('pipeline')">视频流水线</button>
+            <button class="tab-btn" onclick="switchTab('review')">审核中心</button>
+            <button class="tab-btn" onclick="switchTab('sop')">SOP 生成</button>
+            <button class="tab-btn" onclick="switchTab('classify')">文档分类</button>
+            <button class="tab-btn" onclick="switchTab('templates')">产品模板</button>
+        </div>
+
+        <!-- ========== 选题库 Tab ========== -->
+        <div class="tab-content active" id="tabTopics">
+            <div class="card">
+                <div class="card-header">
+                    <h2>选题库概览</h2>
+                    <button class="btn btn-primary" onclick="openTopicModal()">+ 新建选题</button>
+                </div>
+                <div class="stats-row" id="topicStats"></div>
+                <div class="filter-bar">
+                    <select id="topicFilterProduct" onchange="loadTopics()">
+                        <option value="">全部产品线</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="英语宝">英语宝</option>
+                    </select>
+                    <select id="topicFilterStatus" onchange="loadTopics()">
+                        <option value="">全部状态</option>
+                        <option value="pending">待规划</option>
+                        <option value="planned">已规划</option>
+                        <option value="in_production">制作中</option>
+                        <option value="completed">已完成</option>
+                        <option value="archived">已归档</option>
+                    </select>
+                </div>
+                <div id="topicList"><div class="loading"><div class="spinner"></div><p>加载中...</p></div></div>
+            </div>
+        </div>
+
+        <!-- ========== 流水线 Tab ========== -->
+        <div class="tab-content" id="tabPipeline">
+            <div class="card">
+                <div class="card-header">
+                    <h2>视频流水线</h2>
+                    <button class="btn btn-primary" onclick="openPipelineModal()">+ 新建任务</button>
+                </div>
+                <div class="stats-row" id="pipelineStats"></div>
+                <div class="filter-bar">
+                    <select id="pipelineFilterStatus" onchange="loadPipelines()">
+                        <option value="">全部状态</option>
+                        <option value="document_ingest">文档导入</option>
+                        <option value="rag_retrieval">RAG检索</option>
+                        <option value="sop_generation">SOP生成</option>
+                        <option value="script_writing">脚本撰写</option>
+                        <option value="material_matching">素材匹配</option>
+                        <option value="openmaic_generation">OpenMAIC生成</option>
+                        <option value="review">审核</option>
+                        <option value="publish">发布</option>
+                    </select>
+                    <select id="pipelineFilterProduct" onchange="loadPipelines()">
+                        <option value="">全部产品线</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="英语宝">英语宝</option>
+                    </select>
+                </div>
+                <div id="pipelineList"><div class="loading"><div class="spinner"></div><p>加载中...</p></div></div>
+            </div>
+        </div>
+
+        <!-- ========== 审核中心 Tab ========== -->
+        <div class="tab-content" id="tabReview">
+            <div class="card">
+                <div class="card-header">
+                    <h2>审核中心</h2>
+                    <button class="btn btn-primary" onclick="openReviewModal()">+ 新建审核</button>
+                </div>
+                <div class="stats-row" id="reviewStats"></div>
+                <div class="filter-bar">
+                    <select id="reviewFilterStatus" onchange="loadReviews()">
+                        <option value="">全部状态</option>
+                        <option value="pending">待审核</option>
+                        <option value="in_review">审核中</option>
+                        <option value="approved">已通过</option>
+                        <option value="rejected">已驳回</option>
+                        <option value="published">已发布</option>
+                    </select>
+                    <select id="reviewFilterType" onchange="loadReviews()">
+                        <option value="">全部类型</option>
+                        <option value="video">视频</option>
+                        <option value="sop">SOP</option>
+                        <option value="document">文档</option>
+                    </select>
+                </div>
+                <div id="reviewList"><div class="loading"><div class="spinner"></div><p>加载中...</p></div></div>
+            </div>
+        </div>
+
+        <!-- ========== SOP 生成 Tab ========== -->
+        <div class="tab-content" id="tabSop">
+            <div class="card">
+                <div class="card-header"><h2>SOP 结构化生成</h2></div>
+                <div class="form-group">
+                    <label>产品描述</label>
+                    <input type="text" id="sopProduct" placeholder="如：词典笔 X8 Pro" style="width:100%">
+                </div>
+                <div class="form-group">
+                    <label>用户需求</label>
+                    <textarea id="sopQuery" placeholder="如：如何连接Wi-Fi" style="min-height:40px"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>文档参考（可选）</label>
+                    <textarea id="sopContext" placeholder="粘贴知识库文档内容..." style="min-height:60px"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>场景类型</label>
+                    <select id="sopSceneType" onchange="loadSceneTemplates()">
+                        <option value="hardware_action">硬件操作</option>
+                        <option value="screen_operation">录屏操作</option>
+                        <option value="scan_demo">扫描演示</option>
+                        <option value="translation_conv">翻译对话</option>
+                        <option value="troubleshooting">故障排查</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="generateSop()">生成 SOP</button>
+                <div id="sopResult" style="margin-top:16px"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h2>场景模板预览</h2></div>
+                <div id="sceneTemplates"></div>
+            </div>
+        </div>
+
+        <!-- ========== 文档分类 Tab ========== -->
+        <div class="tab-content" id="tabClassify">
+            <div class="card">
+                <div class="card-header"><h2>文档分类标签</h2></div>
+                <div id="docTypesList" style="margin-bottom:16px"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h2>文档内容分类</h2></div>
+                <div class="form-group">
+                    <label>文档标题（可选）</label>
+                    <input type="text" id="classifyTitle" style="width:100%" placeholder="如：X8 Pro 产品说明书">
+                </div>
+                <div class="form-group">
+                    <label>文档内容</label>
+                    <textarea id="classifyText" style="min-height:80px" placeholder="粘贴文档内容进行自动分类..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="classifyDocument()">开始分类</button>
+                <div id="classifyResult" style="margin-top:12px"></div>
+            </div>
+        </div>
+
+        <!-- ========== 产品模板 Tab ========== -->
+        <div class="tab-content" id="tabTemplates">
+            <div class="card">
+                <div class="card-header"><h2>产品线视频模板</h2></div>
+                <div id="templateList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 选题 Modal -->
+    <div class="modal-overlay" id="topicModal">
+        <div class="modal">
+            <h3 id="topicModalTitle">新建选题</h3>
+            <input type="hidden" id="editTopicId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>产品线</label>
+                    <select id="topicFormProduct">
+                        <option value="">请选择</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="英语宝">英语宝</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>产品型号</label>
+                    <input type="text" id="topicFormModel" placeholder="如: X8 Pro">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>选题标题</label>
+                <input type="text" id="topicFormTitle" placeholder="如: X8 Pro 首次开机与Wi-Fi连接">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>来源</label>
+                    <select id="topicFormSource">
+                        <option value="rag_query">RAG高频查询</option>
+                        <option value="manual_input">手动录入</option>
+                        <option value="faq_analysis">FAQ分析</option>
+                        <option value="user_feedback">用户反馈</option>
+                        <option value="operation_doc">操作文档</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>难度</label>
+                    <select id="topicFormDifficulty">
+                        <option value="低">低</option>
+                        <option value="中">中</option>
+                        <option value="高">高</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>查询频次</label>
+                    <input type="number" id="topicFormCount" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>预计时长(秒)</label>
+                    <input type="number" id="topicFormDuration" value="60" min="10">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>来源详情</label>
+                <input type="text" id="topicFormDetail" placeholder="如: 用户高频查询：如何连接Wi-Fi">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('topicModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveTopic()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 流水线 Modal -->
+    <div class="modal-overlay" id="pipelineModal">
+        <div class="modal">
+            <h3>新建流水线任务</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>产品线</label>
+                    <select id="pipeFormProduct">
+                        <option value="">请选择</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="英语宝">英语宝</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>产品型号</label>
+                    <input type="text" id="pipeFormModel" placeholder="如: X8 Pro">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>任务标题</label>
+                <input type="text" id="pipeFormTitle" placeholder="如: X8 Pro Wi-Fi连接教程">
+            </div>
+            <div class="form-group">
+                <label>用户查询</label>
+                <textarea id="pipeFormQuery" placeholder="如: 如何连接Wi-Fi" style="min-height:40px"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('pipelineModal')">取消</button>
+                <button class="btn btn-primary" onclick="savePipeline()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 推进阶段 Modal -->
+    <div class="modal-overlay" id="advanceModal">
+        <div class="modal" style="max-width: 420px;">
+            <h3>推进流水线阶段</h3>
+            <div class="form-group">
+                <label>当前阶段</label>
+                <input type="text" id="advCurrentStage" readonly style="background:#f5f5f5;cursor:not-allowed;">
+            </div>
+            <div class="form-group">
+                <label>下一阶段</label>
+                <select id="advNextStage" style="width:100%;padding:8px 12px;border:1.5px solid #e0e5ec;border-radius:8px;font-size:13px;outline:none;"></select>
+            </div>
+            <div style="font-size:12px;color:#666;margin-top:8px;padding:10px 12px;background:#f0f7ff;border-radius:8px;border-left:3px solid #1a73e8;">
+                <span id="advStageHint">选择下一阶段后自动执行对应操作</span>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('advanceModal')">取消</button>
+                <button class="btn btn-primary" onclick="confirmAdvance()">确认推进</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 流水线详情 Modal -->
+    <div class="modal-overlay" id="pipelineDetailModal">
+        <div class="modal" style="max-width: 700px;">
+            <h3>流水线任务详情</h3>
+            <div id="pipelineDetailContent" style="max-height: 65vh; overflow-y: auto;">
+                <div class="loading"><div class="spinner"></div><p>加载中...</p></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('pipelineDetailModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审核 Modal -->
+    <div class="modal-overlay" id="reviewModal">
+        <div class="modal">
+            <h3>新建审核任务</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>目标类型</label>
+                    <select id="reviewFormType">
+                        <option value="video">视频</option>
+                        <option value="sop">SOP</option>
+                        <option value="document">文档</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>目标ID</label>
+                    <input type="text" id="reviewFormId" placeholder="如: VIDEO-XXX">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>目标标题</label>
+                <input type="text" id="reviewFormTitle" placeholder="审核内容标题">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>产品线</label>
+                    <select id="reviewFormProduct">
+                        <option value="">请选择</option>
+                        <option value="学习机">学习机</option>
+                        <option value="翻译机">翻译机</option>
+                        <option value="词典笔">词典笔</option>
+                        <option value="办公本">办公本</option>
+                        <option value="录音笔">录音笔</option>
+                        <option value="英语宝">英语宝</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>产品型号</label>
+                    <input type="text" id="reviewFormModel" placeholder="如: X8 Pro">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('reviewModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveReview()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审核详情 Modal -->
+    <div class="modal-overlay" id="reviewDetailModal">
+        <div class="modal">
+            <h3>审核详情</h3>
+            <div id="reviewDetailContent"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('reviewDetailModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ========== Tab 切换 ==========
+        function switchTab(name) {
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+            document.querySelector('.tab-btn[onclick*="' + name + '"]').classList.add('active');
+            document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+
+            // 加载对应数据
+            if (name === 'topics') loadTopics();
+            else if (name === 'pipeline') loadPipelines();
+            else if (name === 'review') loadReviews();
+            else if (name === 'sop') loadSceneTemplates();
+            else if (name === 'classify') loadDocTypes();
+            else if (name === 'templates') loadTemplates();
+        }
+
+        // ========== 工具函数 ==========
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        function showToast(msg, type) {
+            var t = document.getElementById('toast');
+            t.textContent = msg; t.className = 'toast show ' + (type || 'success');
+            setTimeout(function() { t.classList.remove('show'); }, 3000);
+        }
+        function escapeHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+        function statusBadge(status, labels) {
+            var l = labels || { pending:'待处理', planned:'已规划', in_production:'制作中', completed:'已完成', archived:'已归档', draft:'草稿', approved:'已通过', published:'已发布', rejected:'已驳回', in_review:'审核中' };
+            return '<span class="status-badge status-' + status + '">' + (l[status] || status) + '</span>';
+        }
+        function formatDuration(s) {
+            if (!s && s !== 0) return '-';
+            var m = Math.floor(s/60), sec = s%60;
+            return m > 0 ? m + '分' + (sec > 0 ? sec + '秒' : '') : sec + '秒';
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(function(el) {
+            el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+        });
+
+        // ========== 选题库 ==========
+        async function loadTopics() {
+            var product = document.getElementById('topicFilterProduct').value;
+            var status = document.getElementById('topicFilterStatus').value;
+            var params = new URLSearchParams();
+            if (product) params.set('product_line', product);
+            if (status) params.set('status', status);
+
+            try {
+                var resp = await fetch('/api/topics?' + params.toString());
+                var data = await resp.json();
+                renderTopics(data.topics || []);
+
+                var sResp = await fetch('/api/topics/stats');
+                var sData = await sResp.json();
+                renderTopicStats(sData);
+            } catch(e) {
+                document.getElementById('topicList').innerHTML = '<div class="empty-state">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function renderTopicStats(stats) {
+            var html = '<div class="stat-box"><div class="stat-value">' + (stats.total||0) + '</div><div class="stat-label">选题总数</div></div>';
+            for (var k in stats.by_status) {
+                html += '<div class="stat-box"><div class="stat-value">' + stats.by_status[k] + '</div><div class="stat-label">' + k + '</div></div>';
+            }
+            document.getElementById('topicStats').innerHTML = html;
+        }
+
+        function renderTopics(topics) {
+            var el = document.getElementById('topicList');
+            if (!topics || topics.length === 0) {
+                el.innerHTML = '<div class="empty-state">暂无选题，点击右上角"新建选题"开始</div>'; return;
+            }
+            var html = '<table class="data-table"><thead><tr><th>标题</th><th>产品</th><th>来源</th><th>难度</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+            topics.forEach(function(t) {
+                var labels = { pending:'待规划', planned:'已规划', in_production:'制作中', completed:'已完成', archived:'已归档' };
+                html += '<tr><td><strong>' + escapeHtml(t.title) + '</strong></td>' +
+                    '<td>' + escapeHtml(t.product_line) + ' ' + escapeHtml(t.product_model) + '</td>' +
+                    '<td>' + escapeHtml(t.source) + '</td>' +
+                    '<td>' + escapeHtml(t.difficulty) + '</td>' +
+                    '<td><strong>' + t.priority_score + '</strong></td>' +
+                    '<td>' + statusBadge(t.status, labels) + '</td>' +
+                    '<td><button class="btn btn-sm btn-outline" onclick="editTopic(\'' + t.topic_id + '\')">编辑</button> ' +
+                    '<button class="btn btn-sm btn-danger" onclick="deleteTopic(\'' + t.topic_id + '\')">删除</button></td></tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        function openTopicModal() {
+            document.getElementById('topicModalTitle').textContent = '新建选题';
+            document.getElementById('editTopicId').value = '';
+            document.getElementById('topicFormProduct').value = '';
+            document.getElementById('topicFormModel').value = '';
+            document.getElementById('topicFormTitle').value = '';
+            document.getElementById('topicFormSource').value = 'rag_query';
+            document.getElementById('topicFormDifficulty').value = '中';
+            document.getElementById('topicFormCount').value = '0';
+            document.getElementById('topicFormDuration').value = '60';
+            document.getElementById('topicFormDetail').value = '';
+            document.getElementById('topicModal').classList.add('show');
+        }
+
+        async function editTopic(topicId) {
+            try {
+                var resp = await fetch('/api/topics/' + topicId);
+                var t = await resp.json();
+                document.getElementById('topicModalTitle').textContent = '编辑选题';
+                document.getElementById('editTopicId').value = topicId;
+                document.getElementById('topicFormProduct').value = t.product_line || '';
+                document.getElementById('topicFormModel').value = t.product_model || '';
+                document.getElementById('topicFormTitle').value = t.title || '';
+                document.getElementById('topicFormSource').value = t.source || 'rag_query';
+                document.getElementById('topicFormDifficulty').value = t.difficulty || '中';
+                document.getElementById('topicFormCount').value = t.query_count || 0;
+                document.getElementById('topicFormDuration').value = t.estimated_duration || 60;
+                document.getElementById('topicFormDetail').value = t.source_detail || '';
+                document.getElementById('topicModal').classList.add('show');
+            } catch(e) { showToast('加载失败: ' + e.message, 'error'); }
+        }
+
+        async function saveTopic() {
+            var id = document.getElementById('editTopicId').value;
+            var body = {
+                title: document.getElementById('topicFormTitle').value.trim(),
+                product_line: document.getElementById('topicFormProduct').value,
+                product_model: document.getElementById('topicFormModel').value.trim(),
+                source: document.getElementById('topicFormSource').value,
+                difficulty: document.getElementById('topicFormDifficulty').value,
+                query_count: parseInt(document.getElementById('topicFormCount').value) || 0,
+                estimated_duration: parseInt(document.getElementById('topicFormDuration').value) || 60,
+                source_detail: document.getElementById('topicFormDetail').value.trim()
+            };
+            if (!body.title || !body.product_line) { showToast('请填写标题和产品线', 'error'); return; }
+            try {
+                var resp;
+                if (id) {
+                    resp = await fetch('/api/topics/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                } else {
+                    resp = await fetch('/api/topics', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                }
+                if (!resp.ok) { var err = await resp.json(); showToast('保存失败: ' + (err.detail||'未知错误'), 'error'); return; }
+                showToast(id ? '选题已更新' : '选题已创建', 'success');
+                closeModal('topicModal');
+                loadTopics();
+            } catch(e) { showToast('保存失败: ' + e.message, 'error'); }
+        }
+
+        async function deleteTopic(topicId) {
+            if (!confirm('确定删除此选题？')) return;
+            try {
+                var resp = await fetch('/api/topics/' + topicId, { method: 'DELETE' });
+                if (!resp.ok) { showToast('删除失败', 'error'); return; }
+                showToast('选题已删除', 'success');
+                loadTopics();
+            } catch(e) { showToast('删除失败: ' + e.message, 'error'); }
+        }
+
+        // ========== 流水线 ==========
+        async function loadPipelines() {
+            var status = document.getElementById('pipelineFilterStatus').value;
+            var product = document.getElementById('pipelineFilterProduct').value;
+            var params = new URLSearchParams();
+            if (status) params.set('status', status);
+            if (product) params.set('product_line', product);
+
+            try {
+                var resp = await fetch('/api/pipeline?' + params.toString());
+                var data = await resp.json();
+                renderPipelines(data.tasks || []);
+
+                var sResp = await fetch('/api/pipeline/stats');
+                var sData = await sResp.json();
+                renderPipelineStats(sData);
+            } catch(e) {
+                document.getElementById('pipelineList').innerHTML = '<div class="empty-state">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function renderPipelineStats(stats) {
+            var html = '<div class="stat-box"><div class="stat-value">' + (stats.total||0) + '</div><div class="stat-label">任务总数</div></div>';
+            for (var k in stats.by_stage) {
+                html += '<div class="stat-box"><div class="stat-value">' + stats.by_stage[k] + '</div><div class="stat-label">' + k + '</div></div>';
+            }
+            document.getElementById('pipelineStats').innerHTML = html;
+        }
+
+        function renderPipelines(tasks) {
+            var el = document.getElementById('pipelineList');
+            if (!tasks || tasks.length === 0) {
+                el.innerHTML = '<div class="empty-state">暂无流水线任务</div>'; return;
+            }
+            var stageLabels = { document_ingest:'文档导入', rag_retrieval:'RAG检索', task_identification:'任务识别', sop_generation:'SOP生成', script_writing:'脚本撰写', material_matching:'素材匹配', openmaic_generation:'OpenMAIC生成', review:'审核', publish:'已发布' };
+            var html = '<table class="data-table"><thead><tr><th>标题</th><th>产品</th><th>当前阶段</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+            tasks.forEach(function(t) {
+                var hasSop = t.sop_data && t.sop_data.steps && t.sop_data.steps.length > 0;
+                var hasOpenmaic = t.openmaic_job_id && t.openmaic_job_id !== '';
+                html += '<tr><td><strong>' + escapeHtml(t.title) + '</strong>' +
+                    (hasSop ? '<br><span style="font-size:11px;color:#1a73e8">✓ SOP已生成</span>' : '') +
+                    (hasOpenmaic ? '<br><span style="font-size:11px;color:#2e7d32">✓ OpenMAIC已调用</span>' : '') +
+                    '</td>' +
+                    '<td>' + escapeHtml(t.product_line) + ' ' + escapeHtml(t.product_model) + '</td>' +
+                    '<td>' + (stageLabels[t.current_stage] || t.current_stage) + '</td>' +
+                    '<td>' + statusBadge(t.status) + '</td>' +
+                    '<td style="font-size:11px;color:#888">' + (t.created_at||'-') + '</td>' +
+                    '<td style="white-space:nowrap">' +
+                    '<button class="btn btn-sm btn-success" onclick="advancePipeline(\'' + t.task_id + '\')">推进</button> ' +
+                    '<button class="btn btn-sm btn-warning" onclick="autoFlowPipeline(\'' + t.task_id + '\')">自动流转</button>' +
+                    (hasSop || hasOpenmaic ? ' <button class="btn btn-sm btn-outline" onclick="viewPipelineDetail(\'' + t.task_id + '\')">详情</button>' : '') +
+                    '</td></tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        async function viewPipelineDetail(taskId) {
+            try {
+                var resp = await fetch('/api/pipeline/' + taskId);
+                if (!resp.ok) { showToast('获取详情失败', 'error'); return; }
+                var task = await resp.json();
+            } catch(e) { showToast('获取详情失败: ' + e.message, 'error'); return; }
+
+            var stageLabels = { document_ingest:'文档导入', rag_retrieval:'RAG检索', task_identification:'任务识别', sop_generation:'SOP生成', script_writing:'脚本撰写', material_matching:'素材匹配', openmaic_generation:'OpenMAIC生成', review:'审核', publish:'已发布' };
+            var html = '';
+
+            // SOP 信息
+            if (task.sop_data && task.sop_data.steps && task.sop_data.steps.length > 0) {
+                var sop = task.sop_data;
+                html += '<div class="detail-section" style="margin-bottom:16px;padding:12px;background:#f8f9ff;border-radius:8px;">';
+                html += '<h4 style="color:#1a73e8;margin-bottom:8px;">📋 SOP 结构化步骤</h4>';
+                html += '<div style="font-size:12px;color:#888;margin-bottom:8px;">SOP ID: ' + escapeHtml(sop.sop_id || '-') + ' | 适用版本: ' + escapeHtml(sop.applicable_version || '-') + '</div>';
+                sop.steps.forEach(function(step) {
+                    html += '<div style="padding:8px 10px;margin-bottom:6px;background:white;border-radius:6px;border-left:3px solid #1a73e8;">';
+                    html += '<div style="font-weight:600;font-size:13px;">步骤' + step.step_no + '：' + escapeHtml(step.action) + '</div>';
+                    if (step.operation_target) html += '<div style="font-size:12px;color:#555;margin-top:2px;">操作对象：' + escapeHtml(step.operation_target) + '</div>';
+                    if (step.expected_result) html += '<div style="font-size:12px;color:#555;">预期结果：' + escapeHtml(step.expected_result) + '</div>';
+                    if (step.warning) html += '<div style="font-size:12px;color:#d32f2f;">⚠️ ' + escapeHtml(step.warning) + '</div>';
+                    html += '</div>';
+                });
+                if (sop.prerequisites && sop.prerequisites.length > 0) {
+                    html += '<div style="margin-top:8px;font-size:12px;color:#555;"><strong>前置条件：</strong>' + sop.prerequisites.join('；') + '</div>';
+                }
+                if (sop.warnings && sop.warnings.length > 0) {
+                    html += '<div style="margin-top:4px;font-size:12px;color:#d32f2f;"><strong>⚠️ 警告：</strong>' + sop.warnings.join('；') + '</div>';
+                }
+                if (sop.common_errors && sop.common_errors.length > 0) {
+                    html += '<div style="margin-top:8px;font-size:12px;"><strong style="color:#e65100;">常见错误：</strong></div>';
+                    sop.common_errors.forEach(function(err) {
+                        html += '<div style="font-size:12px;color:#555;padding:4px 8px;margin-top:2px;background:#fff8e1;border-radius:4px;">❓ ' + escapeHtml(err.symptom || '') + ' → ' + escapeHtml(err.solution || '') + '</div>';
+                    });
+                }
+                html += '</div>';
+            }
+
+            // OpenMAIC 信息
+            if (task.openmaic_job_id) {
+                html += '<div class="detail-section" style="margin-bottom:16px;padding:12px;background:#e8f5e9;border-radius:8px;">';
+                html += '<h4 style="color:#2e7d32;margin-bottom:8px;">🎬 OpenMAIC 视频生成</h4>';
+                html += '<div style="font-size:12px;color:#555;margin-bottom:8px;">任务ID: ' + escapeHtml(task.openmaic_job_id) + '</div>';
+                // 查看课堂链接
+                html += '<div style="margin-top:8px;">';
+                html += '<a href="http://localhost:3001/classroom/' + encodeURIComponent(task.openmaic_job_id) + '" target="_blank" class="btn btn-sm btn-success" style="text-decoration:none;display:inline-block;">▶ 查看课堂</a>';
+                html += ' <a href="http://localhost:3001" target="_blank" class="btn btn-sm btn-outline" style="text-decoration:none;display:inline-block;">打开 OpenMAIC</a>';
+                html += '</div>';
+
+                // 轮询状态按钮
+                html += '<div style="margin-top:8px;"><button class="btn btn-sm btn-outline" onclick="pollOpenmaicStatus(\'' + escapeHtml(task.openmaic_job_id) + '\')">刷新状态</button>';
+                html += ' <span id="openmaicStatus_' + escapeHtml(task.openmaic_job_id) + '" style="font-size:12px;color:#888;margin-left:8px;"></span></div>';
+                html += '</div>';
+            }
+
+            // 基本信息
+            html += '<div class="detail-section" style="padding:12px;background:#f5f5f5;border-radius:8px;">';
+            html += '<h4 style="color:#555;margin-bottom:8px;">基本信息</h4>';
+            html += '<div class="detail-grid">';
+            html += '<span class="label">任务ID</span><span class="value">' + escapeHtml(task.task_id) + '</span>';
+            html += '<span class="label">产品</span><span class="value">' + escapeHtml(task.product_line) + ' ' + escapeHtml(task.product_model) + '</span>';
+            html += '<span class="label">当前阶段</span><span class="value">' + (stageLabels[task.current_stage] || task.current_stage) + '</span>';
+            html += '<span class="label">状态</span><span class="value">' + task.status + '</span>';
+            html += '<span class="label">创建时间</span><span class="value">' + (task.created_at || '-') + '</span>';
+            html += '<span class="label">更新时间</span><span class="value">' + (task.updated_at || '-') + '</span>';
+            if (task.error) html += '<span class="label">错误信息</span><span class="value" style="color:#d32f2f;">' + escapeHtml(task.error) + '</span>';
+            html += '</div></div>';
+
+            document.getElementById('pipelineDetailContent').innerHTML = html;
+            document.getElementById('pipelineDetailModal').classList.add('show');
+        }
+
+        async function pollOpenmaicStatus(jobId) {
+            var statusEl = document.getElementById('openmaicStatus_' + jobId);
+            statusEl.textContent = '查询中...';
+            try {
+                var resp = await fetch('/api/generate-tutorial/' + encodeURIComponent(jobId));
+                if (!resp.ok) { statusEl.textContent = '查询失败'; return; }
+                var data = await resp.json();
+                statusEl.textContent = '状态: ' + (data.status || '未知') + ' | 进度: ' + (data.progress || '-');
+            } catch(e) {
+                statusEl.textContent = '查询失败: ' + e.message;
+            }
+        }
+
+        function openPipelineModal() {
+            document.getElementById('pipeFormProduct').value = '';
+            document.getElementById('pipeFormModel').value = '';
+            document.getElementById('pipeFormTitle').value = '';
+            document.getElementById('pipeFormQuery').value = '';
+            document.getElementById('pipelineModal').classList.add('show');
+        }
+
+        async function savePipeline() {
+            var body = {
+                title: document.getElementById('pipeFormTitle').value.trim(),
+                product_line: document.getElementById('pipeFormProduct').value,
+                product_model: document.getElementById('pipeFormModel').value.trim(),
+                query: document.getElementById('pipeFormQuery').value.trim()
+            };
+            if (!body.title || !body.product_line) { showToast('请填写标题和产品线', 'error'); return; }
+            try {
+                var resp = await fetch('/api/pipeline', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                if (!resp.ok) { showToast('创建失败', 'error'); return; }
+                showToast('任务已创建', 'success');
+                closeModal('pipelineModal');
+                loadPipelines();
+            } catch(e) { showToast('创建失败: ' + e.message, 'error'); }
+        }
+
+        async function advancePipeline(taskId) {
+            // 获取当前任务信息
+            try {
+                var resp = await fetch('/api/pipeline/' + taskId);
+                if (!resp.ok) { showToast('获取任务信息失败', 'error'); return; }
+                var task = await resp.json();
+            } catch(e) { showToast('获取任务信息失败: ' + e.message, 'error'); return; }
+
+            var stages = ['document_ingest','rag_retrieval','task_identification','sop_generation','script_writing','material_matching','openmaic_generation','review','publish'];
+            var stageLabels = { document_ingest:'文档导入', rag_retrieval:'RAG检索', task_identification:'任务识别', sop_generation:'SOP生成', script_writing:'脚本撰写', material_matching:'素材匹配', openmaic_generation:'OpenMAIC生成', review:'审核', publish:'已发布' };
+
+            var currentIdx = stages.indexOf(task.current_stage);
+            document.getElementById('advCurrentStage').value = stageLabels[task.current_stage] || task.current_stage;
+
+            // 动态填充下一阶段选项（只显示当前阶段之后的阶段）
+            var select = document.getElementById('advNextStage');
+            select.innerHTML = '';
+            for (var i = currentIdx + 1; i < stages.length; i++) {
+                var opt = document.createElement('option');
+                opt.value = stages[i];
+                opt.textContent = stageLabels[stages[i]] || stages[i];
+                // 添加阶段提示
+                var hints = {
+                    rag_retrieval: '→ 自动检索知识库',
+                    task_identification: '→ 识别操作任务',
+                    sop_generation: '→ 自动生成 SOP',
+                    script_writing: '→ 撰写脚本',
+                    material_matching: '→ 匹配素材',
+                    openmaic_generation: '→ 自动调用 OpenMAIC',
+                    review: '→ 提交审核',
+                    publish: '→ 发布'
+                };
+                if (hints[stages[i]]) {
+                    opt.textContent += ' ' + hints[stages[i]];
+                }
+                select.appendChild(opt);
+            }
+
+            // 显示阶段提示
+            var hintEl = document.getElementById('advStageHint');
+            var stageHints = {
+                sop_generation: '将自动从知识库检索产品文档，生成结构化 SOP',
+                openmaic_generation: '将自动使用 SOP 调用 OpenMAIC 生成教学视频',
+                review: '将提交审核中心进行审核',
+                publish: '将发布视频'
+            };
+            // 默认选中第一个选项
+            if (select.options.length > 0) {
+                select.selectedIndex = 0;
+                hintEl.textContent = stageHints[select.value] || '选择下一阶段后自动执行对应操作';
+            }
+
+            select.onchange = function() {
+                hintEl.textContent = stageHints[this.value] || '选择下一阶段后自动执行对应操作';
+            };
+
+            document.getElementById('advanceModal').classList.add('show');
+            window._advanceTaskId = taskId;
+        }
+
+        async function confirmAdvance() {
+            var next = document.getElementById('advNextStage').value;
+            if (!next) { showToast('请选择下一阶段', 'error'); return; }
+            try {
+                var resp = await fetch('/api/pipeline/' + window._advanceTaskId + '/advance', {
+                    method: 'PUT',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({stage: next})
+                });
+                if (!resp.ok) {
+                    var err = await resp.json().catch(function(){return {detail:'未知错误'};});
+                    showToast('推进失败: ' + (err.detail||'未知错误'), 'error');
+                    return;
+                }
+                var stageLabels = { document_ingest:'文档导入', rag_retrieval:'RAG检索', task_identification:'任务识别', sop_generation:'SOP生成', script_writing:'脚本撰写', material_matching:'素材匹配', openmaic_generation:'OpenMAIC生成', review:'审核', publish:'已发布' };
+                showToast('已推进到: ' + (stageLabels[next]||next), 'success');
+                closeModal('advanceModal');
+                loadPipelines();
+            } catch(e) { showToast('推进失败: ' + e.message, 'error'); }
+        }
+
+        async function autoFlowPipeline(taskId) {
+            if (!confirm('将从当前阶段自动流转到完成，确认继续？')) return;
+            try {
+                var resp = await fetch('/api/pipeline/' + taskId);
+                if (!resp.ok) { showToast('获取任务失败', 'error'); return; }
+                var task = await resp.json();
+            } catch(e) { showToast('获取任务失败: ' + e.message, 'error'); return; }
+
+            var stages = ['document_ingest','rag_retrieval','task_identification','sop_generation','script_writing','material_matching','openmaic_generation','review','publish'];
+            var currentIdx = stages.indexOf(task.current_stage);
+            if (currentIdx >= stages.length - 1) { showToast('已经是最后阶段', 'info'); return; }
+
+            showToast('开始自动流转...', 'success');
+            for (var i = currentIdx + 1; i < stages.length; i++) {
+                var next = stages[i];
+                try {
+                    var advResp = await fetch('/api/pipeline/' + taskId + '/advance', {
+                        method: 'PUT',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({stage: next})
+                    });
+                    if (!advResp.ok) {
+                        showToast('自动流转中断于 ' + next, 'error');
+                        break;
+                    }
+                    // 等待自动处理完成（SOP生成、OpenMAIC调用等可能需要时间）
+                    await new Promise(r => setTimeout(r, 1000));
+                } catch(e) {
+                    showToast('自动流转异常: ' + e.message, 'error');
+                    break;
+                }
+            }
+            showToast('自动流转完成', 'success');
+            loadPipelines();
+        }
+
+        // ========== 审核中心 ==========
+        async function loadReviews() {
+            var status = document.getElementById('reviewFilterStatus').value;
+            var type = document.getElementById('reviewFilterType').value;
+            var params = new URLSearchParams();
+            if (status) params.set('status', status);
+            if (type) params.set('target_type', type);
+
+            try {
+                var resp = await fetch('/api/reviews?' + params.toString());
+                var data = await resp.json();
+                renderReviews(data.records || []);
+
+                var sResp = await fetch('/api/reviews/stats');
+                var sData = await sResp.json();
+                renderReviewStats(sData);
+            } catch(e) {
+                document.getElementById('reviewList').innerHTML = '<div class="empty-state">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function renderReviewStats(stats) {
+            var html = '<div class="stat-box"><div class="stat-value">' + (stats.total||0) + '</div><div class="stat-label">审核总数</div></div>';
+            for (var k in stats.by_status) {
+                html += '<div class="stat-box"><div class="stat-value">' + stats.by_status[k] + '</div><div class="stat-label">' + k + '</div></div>';
+            }
+            document.getElementById('reviewStats').innerHTML = html;
+        }
+
+        function renderReviews(records) {
+            var el = document.getElementById('reviewList');
+            if (!records || records.length === 0) {
+                el.innerHTML = '<div class="empty-state">暂无审核记录</div>'; return;
+            }
+            var statusLabels = { pending:'待审核', in_review:'审核中', approved:'已通过', rejected:'已驳回', published:'已发布', archived:'已归档' };
+            var html = '<table class="data-table"><thead><tr><th>标题</th><th>类型</th><th>产品</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+            records.forEach(function(r) {
+                html += '<tr><td><strong>' + escapeHtml(r.target_title) + '</strong></td>' +
+                    '<td>' + escapeHtml(r.target_type) + '</td>' +
+                    '<td>' + escapeHtml(r.product_line) + ' ' + escapeHtml(r.product_model) + '</td>' +
+                    '<td>' + statusBadge(r.overall_status, statusLabels) + '</td>' +
+                    '<td style="font-size:11px;color:#888">' + (r.created_at||'-') + '</td>' +
+                    '<td><button class="btn btn-sm btn-outline" onclick="viewReviewDetail(\'' + r.review_id + '\')">详情</button></td></tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        function openReviewModal() { document.getElementById('reviewModal').classList.add('show'); }
+
+        async function saveReview() {
+            var body = {
+                target_type: document.getElementById('reviewFormType').value,
+                target_id: document.getElementById('reviewFormId').value.trim(),
+                target_title: document.getElementById('reviewFormTitle').value.trim(),
+                product_line: document.getElementById('reviewFormProduct').value,
+                product_model: document.getElementById('reviewFormModel').value.trim()
+            };
+            if (!body.target_id || !body.target_title) { showToast('请填写目标ID和标题', 'error'); return; }
+            try {
+                var resp = await fetch('/api/reviews', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                if (!resp.ok) { showToast('创建失败', 'error'); return; }
+                showToast('审核任务已创建', 'success');
+                closeModal('reviewModal');
+                loadReviews();
+            } catch(e) { showToast('创建失败: ' + e.message, 'error'); }
+        }
+
+        async function viewReviewDetail(reviewId) {
+            try {
+                var resp = await fetch('/api/reviews/' + reviewId);
+                var r = await resp.json();
+                var statusLabels = { pending:'待审核', in_review:'审核中', approved:'已通过', rejected:'已驳回', published:'已发布', archived:'已归档' };
+                var html = '<div class="detail-grid"><span class="label">审核ID</span><span class="value">' + escapeHtml(r.review_id) + '</span>' +
+                    '<span class="label">标题</span><span class="value"><strong>' + escapeHtml(r.target_title) + '</strong></span>' +
+                    '<span class="label">类型</span><span class="value">' + escapeHtml(r.target_type) + '</span>' +
+                    '<span class="label">产品</span><span class="value">' + escapeHtml(r.product_line) + ' ' + escapeHtml(r.product_model) + '</span>' +
+                    '<span class="label">状态</span><span class="value">' + statusBadge(r.overall_status, statusLabels) + '</span></div>';
+                if (r.reviews && r.reviews.length > 0) {
+                    html += '<h4 style="margin:16px 0 8px">审核进度</h4>';
+                    r.reviews.forEach(function(rev) {
+                        var s = rev.status === 'approved' ? '✅' : (rev.status === 'rejected' ? '❌' : '⏳');
+                        html += '<div class="sop-step">' + s + ' <strong>' + escapeHtml(rev.name) + '</strong> — ' + statusBadge(rev.status, statusLabels) +
+                            (rev.reviewer ? ' (审核人: ' + escapeHtml(rev.reviewer) + ')' : '') +
+                            (rev.comment ? '<br>' + escapeHtml(rev.comment) : '') + '</div>';
+                    });
+                }
+                document.getElementById('reviewDetailContent').innerHTML = html;
+                document.getElementById('reviewDetailModal').classList.add('show');
+            } catch(e) { showToast('加载失败: ' + e.message, 'error'); }
+        }
+
+        // ========== SOP 生成 ==========
+        async function loadSceneTemplates() {
+            try {
+                var resp = await fetch('/api/sop/scene-templates');
+                var data = await resp.json();
+                var html = '<div class="stats-row">';
+                for (var k in data.templates) {
+                    var t = data.templates[k];
+                    html += '<div class="stat-box"><div class="stat-value" style="font-size:14px">' + escapeHtml(t.name) + '</div><div class="stat-label" style="font-size:11px">' + escapeHtml(t.description) + '</div></div>';
+                }
+                html += '</div>';
+                document.getElementById('sceneTemplates').innerHTML = html;
+            } catch(e) {
+                document.getElementById('sceneTemplates').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        async function generateSop() {
+            var product = document.getElementById('sopProduct').value.trim();
+            var query = document.getElementById('sopQuery').value.trim();
+            var context = document.getElementById('sopContext').value.trim();
+            var sceneType = document.getElementById('sopSceneType').value;
+
+            if (!product || !query) { showToast('请填写产品描述和用户需求', 'error'); return; }
+
+            var el = document.getElementById('sopResult');
+            el.innerHTML = '<div class="loading"><div class="spinner"></div><p>正在生成 SOP...</p></div>';
+
+            try {
+                var resp = await fetch('/api/sop/generate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({product_desc: product, query: query, doc_context: context, scene_type: sceneType}) });
+                if (!resp.ok) { el.innerHTML = '<div class="empty-state">生成失败</div>'; return; }
+                var data = await resp.json();
+                var sop = data.sop;
+                var html = '<div class="sop-preview"><h4>' + escapeHtml(sop.title) + '</h4>' +
+                    '<p>产品: ' + escapeHtml(sop.product_line) + ' ' + escapeHtml(sop.product_model) + ' | 版本: ' + escapeHtml(sop.applicable_version || '-') + '</p></div>';
+
+                if (sop.prerequisites && sop.prerequisites.length > 0) {
+                    html += '<div class="sop-preview"><strong>前置条件</strong><br>' + sop.prerequisites.map(function(p) { return '• ' + escapeHtml(p); }).join('<br>') + '</div>';
+                }
+                if (sop.warnings && sop.warnings.length > 0) {
+                    html += '<div class="sop-preview" style="background:#fff3e0"><strong>⚠️ 警告</strong><br>' + sop.warnings.map(function(w) { return '• ' + escapeHtml(w); }).join('<br>') + '</div>';
+                }
+                html += '<div class="sop-preview"><strong>操作步骤</strong>';
+                (sop.steps || []).forEach(function(s) {
+                    html += '<div class="sop-step"><strong>步骤' + s.step_no + ':</strong> ' + escapeHtml(s.action) +
+                        (s.operation_target ? ' → ' + escapeHtml(s.operation_target) : '') +
+                        (s.expected_result ? '<br><span style="color:#2e7d32">预期: ' + escapeHtml(s.expected_result) + '</span>' : '') +
+                        (s.source_document ? '<br><span style="color:#888;font-size:11px">来源: ' + escapeHtml(s.source_document) + '</span>' : '') +
+                        '</div>';
+                });
+                html += '</div>';
+
+                if (sop.common_errors && sop.common_errors.length > 0) {
+                    html += '<div class="sop-preview" style="background:#ffebee"><strong>常见错误</strong>';
+                    sop.common_errors.forEach(function(e) {
+                        html += '<div class="sop-step" style="border-left-color:#d32f2f"><strong>' + escapeHtml(e.symptom) + '</strong><br>解决: ' + escapeHtml(e.solution) + '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '<div style="margin-top:12px"><strong>场景数: ' + data.scenes.length + '</strong> | <button class="btn btn-sm btn-outline" onclick="document.getElementById(\'sopResult\').querySelector(\'pre\').style.display=\'block\'">查看场景JSON</button></div>';
+                html += '<pre style="display:none;background:#f5f5f5;padding:12px;border-radius:8px;font-size:11px;max-height:300px;overflow:auto;margin-top:8px">' + JSON.stringify(data.scenes, null, 2) + '</pre>';
+
+                el.innerHTML = html;
+                showToast('SOP 生成成功', 'success');
+            } catch(e) {
+                el.innerHTML = '<div class="empty-state">生成失败: ' + e.message + '</div>';
+            }
+        }
+
+        // ========== 文档分类 ==========
+        async function loadDocTypes() {
+            try {
+                var resp = await fetch('/api/doc-types');
+                var data = await resp.json();
+                var html = '<div class="stats-row">';
+                (data.types || []).forEach(function(t) {
+                    html += '<div class="stat-box"><div class="stat-value" style="font-size:14px">' + escapeHtml(t.name) + '</div><div class="stat-label" style="font-size:11px">' + escapeHtml(t.description) + '</div></div>';
+                });
+                html += '</div>';
+                document.getElementById('docTypesList').innerHTML = html;
+            } catch(e) {
+                document.getElementById('docTypesList').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        async function classifyDocument() {
+            var text = document.getElementById('classifyText').value.trim();
+            var title = document.getElementById('classifyTitle').value.trim();
+            if (!text) { showToast('请输入文档内容', 'error'); return; }
+
+            var el = document.getElementById('classifyResult');
+            el.innerHTML = '<div class="loading"><div class="spinner"></div><p>分类中...</p></div>';
+
+            try {
+                var resp = await fetch('/api/classify', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text: text, title: title}) });
+                var data = await resp.json();
+                el.innerHTML = '<div class="classify-result"><strong>分类结果: </strong><span style="font-size:18px;color:#1a73e8;font-weight:700">' + escapeHtml(data.document_type) + '</span></div>';
+            } catch(e) {
+                el.innerHTML = '<div class="empty-state">分类失败: ' + e.message + '</div>';
+            }
+        }
+
+        // ========== 产品模板 ==========
+        async function loadTemplates() {
+            try {
+                var resp = await fetch('/api/product-templates');
+                var data = await resp.json();
+                var html = '';
+                for (var line in data.templates) {
+                    var t = data.templates[line];
+                    html += '<div class="card" style="margin-bottom:12px;padding:16px"><h3 style="font-size:15px;margin-bottom:8px;color:#1a73e8">' + escapeHtml(line) + '</h3>' +
+                        '<p style="font-size:13px;color:#666;margin-bottom:8px">' + escapeHtml(t.description) + '</p>' +
+                        '<div class="detail-grid"><span class="label">语音风格</span><span class="value">' + escapeHtml(t.voice_style) + '</span>' +
+                        '<span class="label">字幕风格</span><span class="value">' + escapeHtml(t.subtitle_style) + '</span>' +
+                        '<span class="label">默认场景</span><span class="value">' + escapeHtml(t.default_scene) + '</span>' +
+                        '<span class="label">每步时长</span><span class="value">' + t.duration_per_step + '秒</span>' +
+                        '<span class="label">场景类型</span><span class="value">' + (t.scene_types || []).join(', ') + '</span></div></div>';
+                }
+                document.getElementById('templateList').innerHTML = html;
+            } catch(e) {
+                document.getElementById('templateList').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        // ========== 初始化 ==========
+        loadTopics();
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+[
+  {
+    "topic_id": "TOPIC-D5D4DA1B",
+    "title": "????",
+    "product_line": "???",
+    "product_model": "X8 Pro",
+    "source": "manual_input",
+    "source_detail": "",
+    "query_count": 10,
+    "difficulty": "?",
+    "estimated_duration": 60,
+    "priority_score": 8.4,
+    "status": "pending",
+    "sop_id": "",
+    "video_id": "",
+    "created_at": "2026-07-29 19:15:05",
+    "updated_at": "2026-07-29 19:15:05"
+  },
+  {
+    "topic_id": "TOPIC-5C3308A9",
+    "title": "X8 Pro WiFi??",
+    "product_line": "???",
+    "product_model": "X8 Pro",
+    "source": "rag_query",
+    "source_detail": "",
+    "query_count": 45,
+    "difficulty": "?",
+    "estimated_duration": 65,
+    "priority_score": 54.0,
+    "status": "pending",
+    "sop_id": "",
+    "video_id": "",
+    "created_at": "2026-07-29 19:22:33",
+    "updated_at": "2026-07-29 19:22:33"
+  },
+  {
+    "topic_id": "TOPIC-41735BB1",
+    "title": "关于WiFi的首次连接",
+    "product_line": "英语宝",
+    "product_model": "X8 Pro",
+    "source": "rag_query",
+    "source_detail": "",
+    "query_count": 3,
+    "difficulty": "中",
+    "estimated_duration": 60,
+    "priority_score": 3.6,
+    "status": "pending",
+    "sop_id": "",
+    "video_id": "",
+    "created_at": "2026-07-29 19:32:31",
+    "updated_at": "2026-07-29 19:32:53"
+  }
+]

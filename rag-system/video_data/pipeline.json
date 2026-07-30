@@ -1,0 +1,59 @@
+[
+  {
+    "task_id": "PIPE-7902B1C5",
+    "title": "X8 Pro Wi-Fi????",
+    "product_line": "???",
+    "product_model": "X8 Pro",
+    "query": "????Wi-Fi",
+    "topic_id": "",
+    "doc_context": "",
+    "sop_data": null,
+    "script": "",
+    "materials": [],
+    "openmaic_job_id": "FamsWaLtc8",
+    "openmaic_result": null,
+    "review_id": "",
+    "current_stage": "publish",
+    "status": "running",
+    "error": "",
+    "created_at": "2026-07-29 19:22:38",
+    "updated_at": "2026-07-29 20:04:43"
+  },
+  {
+    "task_id": "PIPE-20466A5A",
+    "title": "如何连接WiFi",
+    "product_line": "英语宝",
+    "product_model": "X8 pro",
+    "query": "",
+    "topic_id": "",
+    "doc_context": "[参考1] [产品: 英语宝]\n## 3. 用户评价详情（精选）\n### [评价 2] 王琳茹\n*   **评分级别**：4星\n*   **购买规格**：心想事“橙”128G\n*   **评价日期**：2026年6月20日\n*   **评价内容**：小巧玲珑的出门携带方便，孩子听听力完全不用依赖手机了，还可以当手机用，就是电池不耐用，有些功能还需进一步要完善！\n*   **商家回复**：尊敬的用户您好！英语宝续航给力，正常使用可连续陪读...\n*   **用户晒图**：\n    *   ![晒图1](https://img.alicdn.com/imgextra/i2/O1CN01Dqo1gd1wMhnobvRco_!!6000000006294-2-tps-145-145.png)\n\n---\n[参考2] [产品: 英语宝]\n## 3. 用户评价详情（精选）\n### [评价 4] 匿名买家\n*   **评分级别**：5星\n*   **购买规格**：炉火纯“青”128G\n*   **评价日期**：2026年7月15日\n*   **评价内容**：科大讯飞的这款英语宝非常适合中学生！里面的时",
+    "sop_data": {
+      "sop_id": "SOP-5BEA2340",
+      "product_line": "英语宝",
+      "product_model": "pro",
+      "title": "英语宝X8 pro连接WiFi操作流程",
+      "applicable_version": "所有版本",
+      "prerequisites": [],
+      "warnings": [
+        "文档中未提供具体连接WiFi的操作步骤，请参考设备说明书或联系客服。"
+      ],
+      "steps": [],
+      "completion_check": [
+        "无完成标志，因文档缺乏相关信息"
+      ],
+      "common_errors": [],
+      "created_at": "2026-07-29 19:59:40",
+      "updated_at": "2026-07-29 19:59:40"
+    },
+    "script": "",
+    "materials": [],
+    "openmaic_job_id": "C6nim5qieS",
+    "openmaic_result": null,
+    "review_id": "",
+    "current_stage": "publish",
+    "status": "running",
+    "error": "",
+    "created_at": "2026-07-29 19:34:11",
+    "updated_at": "2026-07-29 20:03:33"
+  }
+]

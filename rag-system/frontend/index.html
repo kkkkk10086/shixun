@@ -38,6 +38,15 @@
         .upload-status.error { display: block; background: #ffebee; color: #c62828; }
         .upload-status.loading { display: block; background: #e3f2fd; color: #1565c0; }
         .content { display: flex; flex-direction: column; gap: 16px; }
+        .product-selector { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .product-btn { padding: 10px 20px; border: 2px solid #e0e5ec; border-radius: 10px; background: white; cursor: pointer; font-size: 14px; font-weight: 600; color: #555; transition: all 0.2s; }
+        .product-btn:hover { border-color: #1a73e8; color: #1a73e8; background: #f0f4ff; transform: translateY(-1px); }
+        .product-btn.active { border-color: #1a73e8; background: #1a73e8; color: white; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
+        .model-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+        .model-btn { padding: 7px 16px; border: 1.5px solid #e0e5ec; border-radius: 8px; background: white; cursor: pointer; font-size: 13px; color: #555; transition: all 0.2s; }
+        .model-btn:hover { border-color: #ff6b35; color: #ff6b35; }
+        .model-btn.active { border-color: #ff6b35; background: #ff6b35; color: white; }
+        .selected-product-bar { display: flex; align-items: center; justify-content: space-between; background: #fff8f0; border: 1px solid #ffe0b2; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #e65100; }
         .mode-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
         .mode-tab { padding: 7px 16px; border: 1.5px solid #e0e5ec; border-radius: 20px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; color: #555; }
         .mode-tab:hover { border-color: #1a73e8; color: #1a73e8; }
@@ -68,6 +77,45 @@
         .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
         .user-bubble { background: #1a73e8; color: white; border-bottom-right-radius: 4px; }
         .assistant-bubble { background: #f0f2f5; color: #333; border-bottom-left-radius: 4px; }
+        .gen-tutorial-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 8px 16px; background: linear-gradient(135deg, #ff6b35, #e65100); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .gen-tutorial-btn:hover { box-shadow: 0 4px 12px rgba(230,81,0,0.3); transform: translateY(-1px); }
+        .gen-tutorial-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .gen-tutorial-btn .icon { font-size: 16px; }
+        .tutorial-progress { margin-top: 8px; padding: 10px 14px; background: #fff8f0; border: 1px solid #ffe0b2; border-radius: 8px; font-size: 13px; color: #e65100; }
+        .tutorial-progress .progress-bar { height: 4px; background: #ffe0b2; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+        .tutorial-progress .progress-fill { height: 100%; background: linear-gradient(90deg, #ff6b35, #e65100); border-radius: 2px; transition: width 0.5s; }
+        .tutorial-result { margin-top: 8px; padding: 12px 16px; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; font-size: 13px; }
+        .tutorial-result a { color: #1a73e8; text-decoration: none; font-weight: 600; }
+        .tutorial-result a:hover { text-decoration: underline; }
+        .tutorial-error { margin-top: 8px; padding: 10px 14px; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 8px; font-size: 13px; color: #c62828; }
+
+        /* 视频推荐卡片 */
+        .video-recommend { margin-top: 10px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d4fc; border-radius: 10px; }
+        .video-recommend-title { font-size: 13px; font-weight: 600; color: #1a73e8; margin-bottom: 8px; }
+        .video-card { display: flex; gap: 12px; padding: 8px; background: white; border-radius: 8px; margin-bottom: 6px; border: 1px solid #e8e8e8; cursor: pointer; transition: all 0.2s; }
+        .video-card:hover { border-color: #1a73e8; box-shadow: 0 2px 8px rgba(26,115,232,0.1); }
+        .video-card-thumb { width: 80px; height: 56px; background: linear-gradient(135deg, #1a73e8, #0d47a1); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-shrink: 0; }
+        .video-card-info { flex: 1; min-width: 0; }
+        .video-card-title { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .video-card-meta { font-size: 11px; color: #888; margin-top: 2px; }
+        .video-card-chapters { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+        .chapter-chip { font-size: 10px; padding: 2px 8px; background: #e8f0fe; color: #1a73e8; border-radius: 10px; cursor: pointer; border: none; }
+        .chapter-chip:hover { background: #1a73e8; color: white; }
+
+        /* 反馈按钮 */
+        .feedback-bar { margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+        .feedback-btn { padding: 4px 12px; border: 1px solid #e0e5ec; border-radius: 14px; background: white; cursor: pointer; font-size: 12px; color: #888; transition: all 0.2s; }
+        .feedback-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+        .feedback-btn.active { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; }
+        .feedback-btn.like.active { border-color: #4caf50; background: #e8f5e9; color: #4caf50; }
+        .feedback-btn.dislike.active { border-color: #f44336; background: #ffebee; color: #f44336; }
+        .feedback-status { font-size: 11px; color: #aaa; margin-left: 4px; }
+
+        /* 可点击相关问题 */
+        .related-questions { margin-top: 8px; padding: 8px; background: #fafbfc; border-radius: 8px; }
+        .related-questions-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; }
+        .related-q-btn { display: inline-block; padding: 4px 12px; margin: 2px; border: 1px solid #e0e5ec; border-radius: 14px; background: white; cursor: pointer; font-size: 12px; color: #1a73e8; transition: all 0.2s; }
+        .related-q-btn:hover { border-color: #1a73e8; background: #e8f0fe; }
     </style>
 </head>
 <body>
@@ -77,6 +125,8 @@
             <span>讯飞智能硬件产品助理 · 数据底座</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px">
+            <a href="/admin" style="color:white;text-decoration:none;font-size:13px;padding:6px 14px;border:1px solid rgba(255,255,255,0.5);border-radius:16px">综合管理</a>
+            <a href="/video_admin" style="color:white;text-decoration:none;font-size:13px;padding:6px 14px;border:1px solid rgba(255,255,255,0.5);border-radius:16px">视频管理</a>
             <a href="/evaluate" style="color:white;text-decoration:none;font-size:13px;padding:6px 14px;border:1px solid rgba(255,255,255,0.5);border-radius:16px">RAGAS 评估</a>
             <span>系统运行中</span>
         </div>
@@ -123,7 +173,32 @@
         </div>
 
         <div class="content">
-            <div class="card">
+            <div class="card" id="productSelectionCard">
+                <h2>请选择产品</h2>
+                <p style="font-size:13px;color:#888;margin-bottom:12px">请先选择您要咨询的产品类别，再选择具体型号</p>
+                <div class="product-selector" id="productSelector">
+                    <button class="product-btn" data-product="学习机" onclick="selectProduct('学习机')">学习机</button>
+                    <button class="product-btn" data-product="翻译机" onclick="selectProduct('翻译机')">翻译机</button>
+                    <button class="product-btn" data-product="词典笔" onclick="selectProduct('词典笔')">词典笔</button>
+                    <button class="product-btn" data-product="办公本" onclick="selectProduct('办公本')">办公本</button>
+                    <button class="product-btn" data-product="录音笔" onclick="selectProduct('录音笔')">录音笔</button>
+                    <button class="product-btn" data-product="录音卡" onclick="selectProduct('录音卡')">录音卡</button>
+                    <button class="product-btn" data-product="英语宝" onclick="selectProduct('英语宝')">英语宝</button>
+                    <button class="product-btn" data-product="键盘" onclick="selectProduct('键盘')">键盘</button>
+                    <button class="product-btn" data-product="鼠标" onclick="selectProduct('鼠标')">鼠标</button>
+                </div>
+                <div id="modelSelectionArea" style="display:none;margin-top:16px">
+                    <h3 style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px">选择型号</h3>
+                    <div class="model-selector" id="modelSelector"></div>
+                    <button class="btn-skip" onclick="skipModel()" style="margin-top:8px;padding:6px 14px;border:1px solid #e0e5ec;border-radius:6px;background:white;font-size:12px;color:#888;cursor:pointer">不指定型号（检索全部）</button>
+                </div>
+            </div>
+
+            <div class="card" id="queryCard" style="display:none">
+                <div class="selected-product-bar" id="selectedProductBar">
+                    <span id="selectedProductDisplay"></span>
+                    <button onclick="resetProduct()" style="padding:4px 10px;border:1px solid #e0e5ec;border-radius:6px;background:white;font-size:12px;color:#888;cursor:pointer">更换产品</button>
+                </div>
                 <h2>智能查询</h2>
                 <div class="mode-tabs">
                     <button class="mode-tab active" data-mode="chat" onclick="setMode('chat')">智能对话</button>
@@ -146,8 +221,97 @@
     </div>
 
     <script>
+        // 产品对应的型号列表
+        var PRODUCT_MODELS = {
+            '学习机': ['S90 Pro', 'S90'],
+            '翻译机': ['双屏翻译机2.0'],
+            '词典笔': ['X8 Pro', 'X9 Pro'],
+            '办公本': ['X2', 'X2 LAMY'],
+            '录音笔': ['SR702', 'SR502', 'SR302', 'S6 Plus', 'H1 Pro'],
+            '录音卡': ['AIR2611'],
+            '英语宝': ['EBOX'],
+            '键盘': ['T8星火版', 'T8'],
+            '鼠标': ['AM50', 'AM50Pro']
+        };
+
         let currentMode = 'chat';
+        let selectedProduct = '';
+        let selectedModel = '';
         let sessionId = 'session_' + Date.now();
+
+        function selectProduct(product) {
+            selectedProduct = product;
+            selectedModel = '';
+
+            // 高亮选中的产品按钮
+            document.querySelectorAll('.product-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.product === product);
+            });
+
+            // 显示型号选择区域
+            var modelArea = document.getElementById('modelSelectionArea');
+            var modelSelector = document.getElementById('modelSelector');
+            var models = PRODUCT_MODELS[product] || [];
+
+            if (models.length > 0) {
+                modelSelector.innerHTML = '';
+                models.forEach(function(model) {
+                    var btn = document.createElement('button');
+                    btn.className = 'model-btn';
+                    btn.textContent = model;
+                    btn.onclick = function() { selectModel(model); };
+                    modelSelector.appendChild(btn);
+                });
+                modelArea.style.display = 'block';
+            } else {
+                // 没有型号列表，直接进入对话
+                modelArea.style.display = 'none';
+                enterQuery();
+            }
+        }
+
+        function selectModel(model) {
+            selectedModel = model;
+            document.querySelectorAll('.model-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.textContent === model);
+            });
+            enterQuery();
+        }
+
+        function skipModel() {
+            selectedModel = '';
+            enterQuery();
+        }
+
+        function enterQuery() {
+            // 隐藏产品选择卡片，显示查询卡片
+            document.getElementById('productSelectionCard').style.display = 'none';
+            document.getElementById('queryCard').style.display = 'block';
+
+            var display = document.getElementById('selectedProductDisplay');
+            var text = '当前产品：' + selectedProduct;
+            if (selectedModel) text += ' > ' + selectedModel;
+            display.textContent = text;
+
+            // 聚焦输入框
+            document.getElementById('queryInput').focus();
+        }
+
+        function resetProduct() {
+            // 重置产品选择
+            selectedProduct = '';
+            selectedModel = '';
+            document.querySelectorAll('.product-btn').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.model-btn').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            document.getElementById('productSelectionCard').style.display = 'block';
+            document.getElementById('queryCard').style.display = 'none';
+            document.getElementById('modelSelectionArea').style.display = 'none';
+            document.getElementById('resultArea').innerHTML = '<div class="empty-state" id="emptyState">请先选择产品，然后输入问题</div>';
+        }
 
         function setMode(mode) {
             currentMode = mode;
@@ -159,6 +323,13 @@
         async function doQuery() {
             var query = document.getElementById('queryInput').value.trim();
             if (!query) return;
+
+            // 确保已选择产品
+            if (!selectedProduct) {
+                alert('请先选择产品');
+                resetProduct();
+                return;
+            }
 
             var resultArea = document.getElementById('resultArea');
             var btn = document.getElementById('queryBtn');
@@ -183,7 +354,7 @@
                     var resp = await fetch('/api/chat_stream', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: query, session_id: sessionId })
+                        body: JSON.stringify({ query: query, session_id: sessionId, product: selectedProduct })
                     });
 
                     var reader = resp.body.getReader();
@@ -197,6 +368,7 @@
 
                         var text = decoder.decode(result.value);
                         var lines = text.split('\n');
+                        var lastMsgId = '';
 
                         for (var i = 0; i < lines.length; i++) {
                             if (lines[i].startsWith('data: ')) {
@@ -212,9 +384,90 @@
                                         }
                                         document.getElementById('streamAnswer').querySelector('.chat-bubble').innerHTML = fullAnswer.replace(/\n/g, '<br>');
                                         chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    } else if (data.type === 'videos_recommended') {
+                                        // 显示推荐视频
+                                        var videos = data.videos;
+                                        if (videos && videos.length > 0) {
+                                            var videoHtml = '<div class="video-recommend"><div class="video-recommend-title">📹 相关视频教程</div>';
+                                            videos.forEach(function(v) {
+                                                var chapters = v.chapters || [];
+                                                var chapterHtml = '';
+                                                if (chapters.length > 0) {
+                                                    chapterHtml = '<div class="video-card-chapters">';
+                                                    chapters.forEach(function(ch, idx) {
+                                                        chapterHtml += '<button class="chapter-chip" onclick="jumpToChapter(\'' + v.video_url + '\', ' + ch.start_time + ')">' + ch.title + '</button>';
+                                                    });
+                                                    chapterHtml += '</div>';
+                                                }
+                                                videoHtml += '<div class="video-card" onclick="window.open(\'' + v.video_url + '\', \'_blank\')">' +
+                                                    '<div class="video-card-thumb">▶</div>' +
+                                                    '<div class="video-card-info">' +
+                                                    '<div class="video-card-title">' + v.title + '</div>' +
+                                                    '<div class="video-card-meta">' + (v.product_line || '') + ' · ' + (v.product_model || '') + ' · ' + v.duration + '秒</div>' +
+                                                    chapterHtml +
+                                                    '</div></div>';
+                                            });
+                                            videoHtml += '</div>';
+                                            var streamEl = document.getElementById('streamAnswer') || document.getElementById(lastMsgId);
+                                            if (streamEl) {
+                                                streamEl.insertAdjacentHTML('afterend', videoHtml);
+                                            } else {
+                                                chatContainer.innerHTML += videoHtml;
+                                            }
+                                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                                        }
                                     } else if (data.type === 'done') {
                                         var streamEl = document.getElementById('streamAnswer');
-                                        if (streamEl) streamEl.removeAttribute('id');
+                                        if (streamEl) {
+                                            streamEl.removeAttribute('id');
+                                            // 添加"生成视频教程"按钮 + 反馈按钮 + 相关问题
+                                            var msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                                            streamEl.id = msgId;
+                                            lastMsgId = msgId;
+
+                                            // 提取相关问题（从回答中解析 **相关问题** 后面的内容）
+                                            var relatedQuestions = [];
+                                            var rqMatch = fullAnswer.match(/\*\*相关问题\*\*\s*[：:]\s*([\s\S]*)/);
+                                            if (rqMatch) {
+                                                var rqText = rqMatch[1];
+                                                var qLines = rqText.split('\n');
+                                                qLines.forEach(function(line) {
+                                                    line = line.trim();
+                                                    if (line.match(/^\d+[\.\、\s]/) || line.match(/^[-*]/)) {
+                                                        var q = line.replace(/^\d+[\.\、\s]*/, '').replace(/^[-*]\s*/, '').trim();
+                                                        if (q && q.length > 4 && q.length < 60) {
+                                                            relatedQuestions.push(q);
+                                                        }
+                                                    }
+                                                });
+                                            }
+
+                                            // 构建按钮区
+                                            var actionsHtml = '<div style="margin-top:8px">';
+
+                                            // 生成视频教程按钮
+                                            actionsHtml += '<button class="gen-tutorial-btn" id="tutorialBtn_' + msgId + '" onclick="generateTutorial(\'' + query.replace(/'/g, "\\'") + '\', \'' + msgId + '\')">' +
+                                                '<span class="icon">🎬</span> 生成视频教程</button>';
+
+                                            // 反馈按钮
+                                            actionsHtml += '<div class="feedback-bar">' +
+                                                '<button class="feedback-btn like" onclick="submitFeedback(this, \'' + msgId + '\', 1, \'' + query.replace(/'/g, "\\'") + '\')">👍 有用</button>' +
+                                                '<button class="feedback-btn dislike" onclick="submitFeedback(this, \'' + msgId + '\', -1, \'' + query.replace(/'/g, "\\'") + '\')">👎 没用</button>' +
+                                                '<span class="feedback-status" id="fbStatus_' + msgId + '"></span></div>';
+
+                                            actionsHtml += '</div>';
+
+                                            // 可点击相关问题
+                                            if (relatedQuestions.length > 0) {
+                                                actionsHtml += '<div class="related-questions"><div class="related-questions-title">🤔 相关问题</div>';
+                                                relatedQuestions.forEach(function(q) {
+                                                    actionsHtml += '<button class="related-q-btn" onclick="askRelatedQuestion(\'' + q.replace(/'/g, "\\'") + '\')">' + q + '</button>';
+                                                });
+                                                actionsHtml += '</div>';
+                                            }
+
+                                            streamEl.querySelector('.chat-bubble').insertAdjacentHTML('afterend', actionsHtml);
+                                        }
                                     } else if (data.type === 'error') {
                                         if (typingEl) typingEl.remove();
                                         chatContainer.innerHTML += '<div class="chat-msg assistant"><div class="chat-bubble assistant-bubble" style="color:red">' + data.content + '</div></div>';
@@ -240,7 +493,7 @@
 
             try {
                 var isAgent = ['react', 'plan_and_solve', 'reflection'].indexOf(currentMode) >= 0;
-                var body = { query: query, mode: isAgent ? 'enhanced' : currentMode, top_k: 5 };
+                var body = { query: query, mode: isAgent ? 'enhanced' : currentMode, top_k: 5, product: selectedProduct };
                 if (isAgent) body.agent_mode = currentMode;
 
                 var resp = await fetch('/api/query', {
@@ -351,6 +604,109 @@
             }
         }
 
+        // ========== 视频教程生成功能 ==========
+
+        async function generateTutorial(query, msgId) {
+            if (!selectedProduct) {
+                alert('请先选择产品');
+                return;
+            }
+
+            var btn = document.getElementById('tutorialBtn_' + msgId);
+            if (btn) btn.disabled = true;
+
+            // 显示进度
+            var progressDiv = document.createElement('div');
+            progressDiv.className = 'tutorial-progress';
+            progressDiv.id = 'tutorialProgress_' + msgId;
+            progressDiv.innerHTML = '<div>正在生成教学教程，请稍候...</div><div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div>';
+            if (btn && btn.parentNode) {
+                btn.parentNode.insertBefore(progressDiv, btn.nextSibling);
+            }
+
+            try {
+                // 1. 发起生成任务
+                var resp = await fetch('/api/generate-tutorial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        product: selectedProduct,
+                        product_model: selectedModel
+                    })
+                });
+                var data = await resp.json();
+                if (data.detail) {
+                    throw new Error(data.detail);
+                }
+
+                var progressFill = progressDiv.querySelector('.progress-fill');
+                progressFill.style.width = '20%';
+                progressDiv.querySelector('div:first-child').textContent = '正在生成课堂内容...';
+
+                // 2. 轮询任务状态
+                var jobId = data.job_id;
+                var pollUrl = '/api/generate-tutorial/' + jobId;
+                var pollInterval = data.poll_interval_ms || 5000;
+
+                var done = false;
+                var maxPolls = 120; // 最多轮询10分钟
+                var polls = 0;
+
+                while (!done && polls < maxPolls) {
+                    await new Promise(r => setTimeout(r, pollInterval));
+                    polls++;
+
+                    var statusResp = await fetch(pollUrl);
+                    var statusData = await statusResp.json();
+
+                    // 更新进度
+                    var progress = 10 + Math.min(polls * 5, 70);
+                    progressFill.style.width = progress + '%';
+
+                    if (statusData.status === 'succeeded' || statusData.done) {
+                        done = true;
+                        progressFill.style.width = '100%';
+                        progressDiv.querySelector('div:first-child').textContent = '教程生成完成！';
+
+                        // 显示结果
+                        var resultDiv = document.createElement('div');
+                        resultDiv.className = 'tutorial-result';
+
+                        var classroomId = (statusData.result && statusData.result.classroomId) ? statusData.result.classroomId : jobId;
+                        var classroomUrl = 'http://localhost:3001/classroom/' + classroomId;
+                        resultDiv.innerHTML = '✅ 教程已生成！<br><br>' +
+                            '<a href="' + classroomUrl + '" target="_blank" class="btn-open-classroom">🎬 打开教学课堂</a>';
+
+                        progressDiv.parentNode.insertBefore(resultDiv, progressDiv.nextSibling);
+                        progressDiv.style.display = 'none';
+                    } else if (statusData.status === 'failed') {
+                        done = true;
+                        throw new Error(statusData.error || '教程生成失败');
+                    } else {
+                        progressDiv.querySelector('div:first-child').textContent =
+                            '正在生成... 步骤: ' + (statusData.step || '处理中') +
+                            ' (' + Math.round(progress) + '%)';
+                    }
+                }
+
+                if (polls >= maxPolls) {
+                    throw new Error('生成超时，请稍后重试');
+                }
+
+            } catch (e) {
+                var errorDiv = document.createElement('div');
+                errorDiv.className = 'tutorial-error';
+                errorDiv.textContent = '❌ ' + (e.message || '生成失败');
+                if (progressDiv && progressDiv.parentNode) {
+                    progressDiv.parentNode.insertBefore(errorDiv, progressDiv.nextSibling);
+                }
+                progressDiv.style.display = 'none';
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
         loadStats();
         loadFileList();
 
@@ -393,6 +749,67 @@
                 btn.disabled = false;
                 btn.textContent = 'AI 生成用例并评估';
             }
+        }
+
+        // ========== 反馈收集 ==========
+
+        async function submitFeedback(btn, msgId, rating, query) {
+            // 防止重复点击
+            var parentBar = btn.parentNode;
+            if (parentBar.querySelector('.feedback-btn.like.active') || parentBar.querySelector('.feedback-btn.dislike.active')) {
+                return;
+            }
+
+            // 获取回答内容
+            var msgEl = document.getElementById(msgId);
+            var answerText = '';
+            if (msgEl) {
+                var bubble = msgEl.querySelector('.chat-bubble');
+                if (bubble) answerText = bubble.textContent || '';
+            }
+
+            // 发送反馈
+            try {
+                var resp = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        query: query,
+                        answer: answerText.substring(0, 500),
+                        rating: rating,
+                        comment: ''
+                    })
+                });
+                var data = await resp.json();
+                if (data.status === 'success') {
+                    btn.classList.add('active');
+                    document.getElementById('fbStatus_' + msgId).textContent = rating === 1 ? '感谢反馈！' : '已记录，我们会改进';
+                }
+            } catch (e) {
+                console.error('反馈提交失败:', e);
+            }
+        }
+
+        // ========== 相关问题点击 ==========
+
+        function askRelatedQuestion(question) {
+            document.getElementById('queryInput').value = question;
+            document.getElementById('queryInput').focus();
+            doQuery();
+        }
+
+        // ========== 视频章节跳转 ==========
+
+        function jumpToChapter(videoUrl, startTime) {
+            // 如果 video_url 是本地路径，跳转到视频管理页面
+            if (videoUrl && !videoUrl.startsWith('http')) {
+                window.open('/video_admin', '_blank');
+            } else if (videoUrl) {
+                window.open(videoUrl + '?t=' + startTime, '_blank');
+            }
+            // 提示用户章节信息
+            console.log('章节跳转: ' + videoUrl + ' @ ' + startTime + 's');
         }
     </script>
 </body>

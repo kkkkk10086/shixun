@@ -9,8 +9,43 @@ venv/
 Thumbs.db
 
 # 数据文件（不上传）
+chroma_db/
+output/
 rag-system/chroma_db/
 rag-system/uploads/
 rag-system/output/
 rag-system/.venv/
 rag-system/.env
+rag-system/chroma_db_bak/
+rag-system/model_cache/
+rag-system/trash_uploads/
+
+# 日志文件
+rag-system/app.log
+rag-system/server.err
+rag-system/server.log
+rag-system/api_err.txt
+rag-system/api_error.txt
+rag-system/api_out.txt
+rag-system/api_output.txt
+rag-system/api.txt
+rag-system/*.log
+app.log
+
+# 临时/生成文件
+rag-system/q.json
+rag-system/query_t.json
+rag-system/recall_analysis.txt
+rag-system/report_content.txt
+rag-system/result.json
+rag-system/report_doc.txt
+report_doc.txt
+
+# 外部项目
+openmaic/
+
+# 工具脚本（不上传）
+rag-system/cache.py
+rag-system/fix_knowledgebase.py
+rag-system/analyze_recall.py
+rag-system/test_*.py

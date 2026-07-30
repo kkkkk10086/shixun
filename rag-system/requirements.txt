@@ -2,7 +2,7 @@ markitdown[docx,pdf]
 langchain
 langchain-community
 langchain-text-splitters
-chromadb
+chromadb>=1.5
 jieba
 scikit-learn
 pymysql
@@ -12,3 +12,6 @@ python-multipart
 requests
 jinja2
 python-dotenv
+sentence-transformers>=3.0
+transformers>=4.40
+torch>=2.0

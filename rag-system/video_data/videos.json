@@ -1,0 +1,26 @@
+[
+  {
+    "video_id": "VIDEO-2FCDC247",
+    "product_line": "???",
+    "product_model": "X8 Pro",
+    "firmware_version": "",
+    "title": "????",
+    "duration": 60,
+    "video_url": "",
+    "thumbnail_url": "",
+    "applicable_questions": [
+      "????",
+      "????"
+    ],
+    "chapters": [
+      {
+        "start_time": 0,
+        "end_time": 30,
+        "title": "????1"
+      }
+    ],
+    "review_status": "published",
+    "created_at": "2026-07-28 16:16:22",
+    "updated_at": "2026-07-28 16:16:22"
+  }
+]
