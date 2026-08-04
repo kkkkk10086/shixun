@@ -49,3 +49,21 @@ rag-system/cache.py
 rag-system/fix_knowledgebase.py
 rag-system/analyze_recall.py
 rag-system/test_*.py
+
+# 根目录日志文件
+rag-service.log
+rag_system.log
+rag_system_err.log
+
+# 测试数据
+test_*.json
+
+# 个人报告
+report/*.docx
+
+# ngrok 二进制文件和目录
+ngrok.exe
+ngrok/
+
+# 个人 SSH 文件
+.sshknown_hosts

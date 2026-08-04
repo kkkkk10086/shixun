@@ -1,0 +1,110 @@
+services:
+  # ==================== MySQL 数据库 ====================
+  mysql:
+    image: mysql:8.0
+    container_name: rag-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-YOUR_PASSWORD}
+      MYSQL_DATABASE: rag_system
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== RAG 智能检索系统 ====================
+  rag-system:
+    build:
+      context: ./rag-system
+      dockerfile: Dockerfile
+    container_name: rag-system
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-YOUR_PASSWORD}
+      - MYSQL_DATABASE=rag_system
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - HF_ENDPOINT=https://hf-mirror.com
+      - OPENMAIC_BASE_URL=http://openmaic:3000
+    volumes:
+      - rag-chroma:/app/chroma_db
+      - rag-uploads:/app/uploads
+      - rag-output:/app/output
+      - rag-video-data:/app/video_data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - rag-network
+
+  # ==================== OpenMAIC 视频生成服务 ====================
+  openmaic:
+    build:
+      context: ./openmaic
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_PERSISTENCE=
+        - NEXT_PUBLIC_PERSISTENCE_TOKEN=
+        - NEXT_PUBLIC_MAIC_EDITOR_ENABLED=
+        - NEXT_PUBLIC_PI_CHAT_ENABLED=
+        - NEXT_PUBLIC_SHOW_VOCATIONAL_TEST_UI=
+        - NEXT_PUBLIC_ENABLE_VIDEO_EXPORT=
+        - NEXT_PUBLIC_ENABLE_PPTX_IMPORT=
+    container_name: rag-openmaic
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./openmaic/.env.local
+    environment:
+      - RENDER_SERVICE_URL=http://render-service:9000
+    volumes:
+      - openmaic-data:/app/data
+    networks:
+      - rag-network
+    depends_on:
+      - rag-system
+
+  # ==================== OpenMAIC 渲染服务（可选） ====================
+  render-service:
+    build: ./openmaic/render-service
+    profiles:
+      - video-export
+    container_name: rag-render
+    ports:
+      - "9000:9000"
+    environment:
+      - PORT=9000
+      - PRODUCER_BROWSER_GPU_MODE=hardware
+      - RENDER_MAX_CONCURRENCY=2
+      - RENDER_MAX_JOBS_PER_USER=0
+    cap_add:
+      - NET_ADMIN
+    mem_limit: 4g
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  rag-chroma:
+  rag-uploads:
+  rag-output:
+  rag-video-data:
+  openmaic-data:
